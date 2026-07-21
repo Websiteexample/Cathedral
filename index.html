@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OnlineCathedral</title>
+<style>
+:root{
+  --bg-page:#111114;
+  --hilite-text:#f2f1ec;
+  --dim-text:rgba(240,238,232,0.62);
+  --dim-text-2:rgba(240,238,232,0.4);
+  --line-soft:rgba(255,255,255,0.09);
+  --line-dashed:rgba(255,255,255,0.17);
+  --panel-bg:transparent;
+  --panel-bg-soft:transparent;
+  --panel-bg-med:transparent;
+  --panel-bg-strong:transparent;
+  --glass-highlight:rgba(255,255,255,0.1);
+  --glass-highlight-2:rgba(255,255,255,0.13);
+  --shadow-1:rgba(0,0,0,0.55);
+  --shadow-2:rgba(0,0,0,0.4);
+  --shadow-soft:rgba(0,0,0,0.35);
+  --shadow-med:rgba(0,0,0,0.45);
+  --shadow-lift:rgba(0,0,0,0.6);
+  --scrollbar-thumb:rgba(255,255,255,0.16);
+  --star-gold:#e0a942;
+  --star-gold-glow:rgba(224,169,66,0.55);
+  --accent-track:#f2f1ec;
+  --icon-stroke:#f2f1ec;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif;overflow-x:hidden;transition:background .5s ease;}
+
+#waveStage{position:fixed;inset:0;width:100%;height:100%;z-index:0;background:var(--bg-page);overflow:hidden;}
+.wave-canvas-layer{
+  position:absolute;top:-40px;left:-40px;right:-40px;bottom:-40px;
+  width:calc(100% + 80px);height:calc(100% + 80px);
+  transition:opacity 1.15s ease;background-size:cover;background-position:center;background-repeat:no-repeat;
+  will-change:opacity,filter;
+}
+/* the -40px bleed above keeps filter:blur() from clipping at the viewport edge,
+   which otherwise produces a visible seam/vignette line along all four sides
+   during the blur-pulse transition */
+#waveLayerB{opacity:0;}
+@keyframes bgBlurPulse{
+  0%{ filter:blur(0px) saturate(1); }
+  45%{ filter:blur(15px) saturate(0.65); }
+  100%{ filter:blur(0px) saturate(1); }
+}
+.wave-canvas-layer.bg-transitioning{ animation:bgBlurPulse 1.15s ease; }
+
+.bg-wrap{position:relative;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 10px;z-index:1;}
+
+.stage{position:relative;width:960px;max-width:100%;z-index:2;display:flex;align-items:stretch;justify-content:center;gap:40px;}
+
+.floater{
+  background:transparent;border:none;border-radius:10px;position:relative;
+  filter: drop-shadow(0 18px 34px var(--shadow-1)) drop-shadow(0 2px 6px var(--shadow-2));
+}
+
+/* ===== animated soft multicolor border, reusable ===== */
+@property --hue{
+  syntax:'<number>';
+  initial-value:0;
+  inherits:false;
+}
+@keyframes hueShift{
+  from{ --hue:0; }
+  to{ --hue:360; }
+}
+.mc-border{
+  position:relative;
+}
+.mc-border::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  padding:1px;
+  background: conic-gradient(from calc(var(--hue) * 1deg),
+    rgba(255,120,120,0.35), rgba(255,210,120,0.35), rgba(150,230,150,0.35),
+    rgba(120,190,255,0.35), rgba(200,150,255,0.35), rgba(255,120,120,0.35));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hueShift 8s linear infinite;
+  pointer-events:none;
+  opacity:0.8;
+  transition:opacity .3s ease;
+}
+.content-cell.active.mc-border::after{ opacity:0; }
+.content-cell.mc-border::after{ animation:none; }
+
+/* ===== LEFT DISPLAY ===== */
+.left-col{position:relative;width:560px;min-height:760px;display:flex;flex-direction:column;}
+.left-frame{flex:1;display:flex;flex-direction:column;padding:14px;}
+.left-screen{
+  position:relative;flex:1;
+  background:var(--panel-bg);
+  border-radius:8px;
+  box-shadow:0 20px 50px var(--shadow-1);
+  overflow:hidden;display:flex;flex-direction:column;
+  transition:background .5s ease;
+}
+
+.display-title-bar{position:relative;z-index:4;padding:16px 44px 12px 44px;border-bottom:1px solid var(--line-soft);text-align:center;}
+.display-title-bar .eyebrow{font-size:9px;letter-spacing:3px;color:var(--dim-text-2);text-transform:uppercase;margin-bottom:4px;}
+.display-title-bar h2{margin:0;font-size:20px;color:var(--hilite-text);font-weight:600;letter-spacing:0.3px;}
+.disp-subtitle{display:none;margin-top:3px;font-size:12px;color:var(--dim-text);letter-spacing:0.3px;font-family:"Courier New",monospace;}
+
+/* ===== SHARED FLAT ICON-BUTTON STYLE =====
+   Every arrow / icon control on the site (back arrows, page-turn arrows,
+   favorite stars) shares this one flat treatment now instead of each
+   having its own circular pill. A drop-shadow keeps the icon legible
+   over busy background photos without needing a filled backdrop. */
+.icon-btn{
+  border:none;background:transparent;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--hilite-text);
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6));
+  transition:opacity .2s ease, transform .15s ease;
+}
+.icon-btn:hover{opacity:0.68;}
+.icon-btn:active{transform:scale(0.92);}
+.icon-btn:disabled{opacity:0.3;cursor:default;transform:none;}
+
+.fav-toggle-btn{
+  position:absolute;top:16px;right:14px;z-index:6;
+  width:22px;height:22px;
+}
+.fav-toggle-btn svg{fill:none;stroke:var(--dim-text);stroke-width:1.6;transition:all .2s ease;}
+.fav-toggle-btn.active svg{fill:var(--star-gold);stroke:var(--star-gold);}
+
+.disp-back-arrow{
+  position:absolute;top:16px;left:14px;z-index:6;
+  width:22px;height:22px;
+}
+.display-title-bar{padding-left:44px;}
+
+/* artist browse head (shown atop the album grid) */
+.artist-browse-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.artist-browse-art{width:56px;height:56px;border-radius:8px;flex-shrink:0;background-size:cover;box-shadow:0 6px 16px var(--shadow-med);}
+.artist-browse-text h3{margin:0 0 3px 0;font-size:14px;color:var(--hilite-text);}
+.artist-browse-text p{margin:0;font-size:11px;color:var(--dim-text);font-family:"Courier New",monospace;}
+
+.album-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.album-cell{
+  position:relative;
+  border-radius:8px;overflow:hidden;cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--glass-highlight);
+  transition:all .2s ease;
+}
+.album-cell:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);transform:translateY(-2px);}
+.album-cell-art{height:96px;background-size:cover;background-position:center;}
+.album-cell-label{padding:8px 10px 10px 10px;}
+.album-cell-label h4{margin:0 0 2px 0;font-size:11.5px;color:var(--hilite-text);}
+.album-cell-label p{margin:0;font-size:9.5px;color:var(--dim-text-2);font-family:"Courier New",monospace;}
+
+/* album detail head + song list (shown when an album is opened) */
+.album-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.album-detail-art{width:64px;height:64px;border-radius:8px;flex-shrink:0;background-size:cover;box-shadow:0 8px 18px var(--shadow-med);}
+.album-detail-text h3{margin:0 0 3px 0;font-size:15px;color:var(--hilite-text);}
+.album-detail-text p{margin:0;font-size:11px;color:var(--dim-text);font-family:"Courier New",monospace;}
+
+.song-list{display:flex;flex-direction:column;gap:6px;}
+.song-row{
+  position:relative;
+  display:flex;align-items:center;gap:10px;padding:9px 34px 9px 12px;border-radius:6px;cursor:pointer;
+  box-shadow:inset 0 0 0 1px transparent;
+  transition:all .15s ease;
+}
+.song-row .song-fav-star{position:absolute;top:50%;right:22px;transform:translateY(-50%);}
+.song-row .song-row-play{position:absolute;top:50%;right:4px;transform:translateY(-50%);}
+.song-row:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);}
+.song-row-num{font-size:10px;color:var(--dim-text-2);font-family:"Courier New",monospace;width:16px;text-align:center;flex-shrink:0;}
+.song-row-text{flex:1;min-width:0;}
+.song-row-text h4{margin:0 0 2px 0;font-size:11.5px;color:var(--hilite-text);}
+.song-row-text p{margin:0;font-size:9.5px;color:var(--dim-text-2);font-family:"Courier New",monospace;}
+.song-row-play{font-size:10px;color:var(--dim-text-2);flex-shrink:0;}
+.song-row.active .song-row-play{color:var(--hilite-text);}
+
+.display-body{position:relative;z-index:4;padding:16px 18px;flex:1;overflow-y:auto;transition:opacity .16s ease;}
+.display-body::-webkit-scrollbar{width:6px;}
+.display-body::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);}
+.display-body::-webkit-scrollbar-track{background:transparent;}
+
+.display-image{width:100%;height:170px;margin-bottom:12px;box-shadow:0 8px 20px var(--shadow-1);display:block;border-radius:6px;background-size:cover;background-position:center;}
+.display-desc{font-size:12px;line-height:1.7;color:var(--dim-text);font-family:"Courier New",monospace;}
+.display-meta{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line-dashed);font-size:10px;color:var(--dim-text-2);font-family:"Courier New",monospace;letter-spacing:0.5px;}
+.display-meta div{margin-bottom:4px;}
+
+/* ===== media (images / symphonies) detail layout ===== */
+.media-image{width:100%;max-width:420px;height:240px;margin:4px auto 14px auto;box-shadow:0 14px 34px var(--shadow-1);display:block;border-radius:8px;background-size:cover;background-position:center;}
+
+/* ===== PDF viewer (bible / books) ===== */
+.pdf-viewport{
+  position:relative;width:100%;min-height:440px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:6px 0 14px 0;border-radius:8px;overflow:hidden;
+  background:var(--panel-bg-soft);
+  box-shadow:inset 0 0 0 1px var(--glass-highlight);
+}
+.pdf-canvas-wrap{
+  position:relative;width:100%;flex:1;min-height:440px;
+  display:flex;align-items:flex-start;justify-content:center;
+  overflow:auto;padding:14px 0;
+}
+.pdf-canvas-wrap canvas{
+  max-width:92%;
+  box-shadow:0 14px 34px var(--shadow-1);border-radius:4px;
+  background:#fff;
+}
+.pdf-empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:40px 20px;text-align:center;color:var(--dim-text);
+  font-family:"Courier New",monospace;font-size:11.5px;line-height:1.7;
+}
+.pdf-empty-state svg{opacity:0.4;stroke:var(--icon-stroke);}
+.pdf-upload-btn{
+  padding:9px 20px;border-radius:20px;border:none;cursor:pointer;
+  background:var(--panel-bg-strong);color:var(--hilite-text);
+  font-family:"Trebuchet MS",sans-serif;font-size:11.5px;letter-spacing:0.4px;
+  box-shadow:0 6px 16px var(--shadow-2), inset 0 0 0 1px var(--glass-highlight);
+  transition:all .2s ease;
+}
+.pdf-upload-btn:hover{transform:scale(1.04);}
+.pdf-loading-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:40px 20px;color:var(--dim-text-2);font-family:"Courier New",monospace;font-size:11px;
+}
+.book-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:6px;}
+.book-nav button{
+  width:26px;height:26px;color:var(--hilite-text);font-size:15px;
+  border:none;background:transparent;cursor:pointer;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6));
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s ease;
+}
+.book-nav button:hover{opacity:0.68;}
+.book-nav button:disabled{opacity:0.35;cursor:default;transform:none;}
+.book-nav span{font-size:9.5px;letter-spacing:1.5px;color:var(--dim-text-2);font-family:"Courier New",monospace;text-transform:uppercase;}
+.display-meta span{color:var(--hilite-text);}
+
+.favorites-empty{color:var(--dim-text-2);font-size:11px;line-height:1.7;font-family:"Courier New",monospace;padding:20px 4px;text-align:center;}
+.favorites-list{display:flex;flex-direction:column;gap:8px;}
+.favorites-list .list-item{background:var(--panel-bg-soft);}
+.fav-cat-tag{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim-text-2);}
+
+/* ===== RIGHT CONTROL ===== */
+.right-col{position:relative;width:320px;min-height:760px;display:flex;flex-direction:column;padding:20px 16px;}
+.mobile-fav-btn{ display:none; }
+
+.brand-plate{text-align:center;padding:6px 0 18px 0;border-bottom:1px solid var(--line-soft);margin-bottom:16px;}
+.mobile-step3-title{ display:none; } /* mobile-only, see @media(max-width:760px) below */
+.title-row{display:flex;align-items:baseline;justify-content:center;gap:3px;flex-wrap:nowrap;cursor:pointer;user-select:none;transition:opacity .15s ease;}
+.title-row:hover{opacity:0.75;}
+.title-row:active{opacity:0.55;}
+.title-row .t-online{font-family:"Trebuchet MS",sans-serif;font-weight:300;font-size:22px;color:var(--dim-text);letter-spacing:0.5px;transition:all .5s ease;}
+.title-row .t-cathedral{font-family:"Trebuchet MS",sans-serif;font-weight:700;font-size:22px;letter-spacing:0.5px;color:var(--hilite-text);transition:all .5s ease;}
+
+@keyframes titleFlow{
+  0%{ background-position:0% 50%; }
+  100%{ background-position:300% 50%; }
+}
+.rainbow-text{
+  background:linear-gradient(90deg,#ff8a8a,#ffd28a,#9ee79e,#8ac4ff,#c99bff,#ff8a8a);
+  background-size:300% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  animation: titleFlow 6s linear infinite;
+}
+.title-row.colorized .t-online{background:linear-gradient(90deg,#ff8a8a,#ffd28a,#9ee79e,#8ac4ff,#c99bff,#ff8a8a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleFlow 6s linear infinite;}
+.title-row.colorized .t-cathedral{background:linear-gradient(90deg,#ff8a8a,#ffd28a,#9ee79e,#8ac4ff,#c99bff,#ff8a8a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleFlow 6s linear infinite;}
+
+.section-label{font-size:9px;letter-spacing:3px;color:var(--dim-text-2);text-transform:uppercase;padding:0 2px 8px 2px;text-align:left;font-weight:600;}
+.section-label.rainbow-text{font-weight:700;}
+
+/* ===== CONTENT (4 mini screens) ===== */
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
+.content-cell{
+  position:relative;border-radius:8px;overflow:hidden;height:64px;cursor:pointer;
+  background:var(--panel-bg-med);
+  box-shadow:0 6px 18px var(--shadow-2);
+  transition:box-shadow .25s ease;
+}
+.content-cell:hover{box-shadow:0 8px 22px var(--shadow-med);}
+.content-cell.active{box-shadow:0 12px 28px var(--shadow-lift);}
+.content-cell canvas{position:absolute;inset:0;width:100%;height:100%;transform:translateZ(0);}
+.content-cell-label{
+  position:absolute;bottom:0;left:0;right:0;z-index:5;
+  padding:4px 6px 5px 6px;font-size:9.5px;letter-spacing:1.5px;text-align:center;
+  color:var(--hilite-text);text-transform:uppercase;font-weight:600;
+  background:linear-gradient(0deg, var(--panel-bg-strong), transparent);
+  transition:color .3s ease;
+}
+.content-cell.active .content-cell-label{font-weight:700;}
+
+.content-image-space{height:34px;margin-bottom:10px;}
+
+/* ===== MINI LIVE SCREEN ===== */
+.mini-screen-wrap{margin-bottom:14px;}
+.mini-screen{
+  position:relative;height:70px;border-radius:8px;overflow:hidden;
+  background:var(--panel-bg-med);
+  box-shadow:0 8px 20px var(--shadow-2);
+}
+.mini-screen canvas{position:absolute;inset:0;width:100%;height:100%;}
+.mini-live-tag{position:absolute;top:6px;left:8px;z-index:5;display:flex;align-items:center;gap:4px;font-size:8px;letter-spacing:1.5px;color:var(--dim-text);font-family:"Courier New",monospace;text-transform:uppercase;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--hilite-text);box-shadow:0 0 6px var(--shadow-lift), 0 0 3px var(--hilite-text);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.35;transform:scale(0.8);}}
+.mini-clock-tag{position:absolute;top:6px;right:8px;z-index:5;font-size:9px;letter-spacing:1px;color:var(--dim-text);font-family:"Courier New",monospace;}
+
+/* ===== CONTENT LIST (search + list), FIXED SIZE ===== */
+.list-panel-outer{position:relative;border-radius:8px;height:280px;display:flex;flex-direction:column;flex-shrink:0;}
+.list-panel-titlebar{display:flex;justify-content:space-between;align-items:center;padding:0 2px 8px 2px;font-size:9px;letter-spacing:1px;}
+
+.back-arrow{
+  color:var(--dim-text);cursor:pointer;line-height:1;user-select:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:opacity .2s ease;
+}
+.back-arrow:hover{ opacity:0.7; }
+.list-panel-titlebar .cat-name{color:var(--dim-text-2);letter-spacing:2px;text-transform:uppercase;font-weight:600;transition:all .5s ease;}
+.list-panel-titlebar .cat-name.colorized{
+  background:linear-gradient(90deg,#ff8a8a,#ffd28a,#9ee79e,#8ac4ff,#c99bff,#ff8a8a);
+  background-size:300% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  animation: titleFlow 6s linear infinite;
+}
+
+.search-bar{
+  display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:7px 12px;border-radius:20px;
+  flex-shrink:0;
+}
+.search-bar svg{flex-shrink:0;opacity:0.5;stroke:var(--icon-stroke);}
+.search-bar input{flex:1;background:transparent;border:none;outline:none;color:var(--hilite-text);font-family:"Trebuchet MS",sans-serif;font-size:11.5px;letter-spacing:0.3px;}
+.search-bar input::placeholder{color:var(--dim-text-2);}
+
+.list-scroll-wrap{
+  position:relative;display:flex;border-radius:8px;overflow:hidden;
+  background:var(--panel-bg-soft);
+  flex:1 1 0;
+  min-height:0;
+  height:100%;
+}
+.rot-label{writing-mode:vertical-rl;transform:rotate(180deg);width:22px;display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:2px;color:var(--dim-text-2);border-right:1px solid var(--line-soft);text-transform:uppercase;font-weight:bold;padding:8px 0;flex-shrink:0;transition:color .3s ease;}
+.rot-label.colorized{
+  background:linear-gradient(180deg,#ff8a8a,#ffd28a,#9ee79e,#8ac4ff,#c99bff,#ff8a8a);
+  background-size:100% 300%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  animation: rotFlow 6s linear infinite;
+}
+@keyframes rotFlow{ 0%{background-position:50% 0%;} 100%{background-position:50% 300%;} }
+
+.list-items{
+  flex:1 1 0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+  height:100%;
+}
+.list-items::-webkit-scrollbar{width:6px;}
+.list-items::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);}
+.list-items::-webkit-scrollbar-track{background:transparent;}
+
+.list-item{
+  position:relative;
+  display:flex;gap:8px;padding:7px;border-radius:6px;cursor:pointer;
+  box-shadow:inset 0 0 0 1px transparent;
+  transition:all .15s ease;
+  flex-shrink:0;
+  content-visibility:auto;
+  contain-intrinsic-size:60px;
+}
+.list-item:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);}
+.list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:cover;background-position:center;border-radius:4px;}
+.list-item-text{padding-right:20px;}
+.list-item-text h4{margin:0 0 3px 0;font-size:11px;color:var(--hilite-text);letter-spacing:0.3px;}
+.list-item-text p{margin:0;font-size:9.5px;line-height:1.4;color:var(--dim-text);font-family:"Courier New",monospace;}
+.list-item .launch-tag{font-size:8px;color:var(--dim-text-2);letter-spacing:1px;text-transform:uppercase;margin-top:3px;display:inline-block;}
+
+.list-load-more{
+  flex-shrink:0;text-align:center;padding:8px;font-size:9.5px;letter-spacing:1px;
+  color:var(--dim-text-2);font-family:"Courier New",monospace;text-transform:uppercase;
+}
+
+.item-fav-star{
+  position:absolute;top:6px;right:6px;z-index:3;
+  width:18px;height:18px;padding:0;border:none;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;opacity:0.45;transition:all .15s ease;
+}
+.item-fav-star svg{fill:none;stroke:var(--dim-text);stroke-width:1.6;width:14px;height:14px;transition:all .15s ease;}
+.item-fav-star:hover{opacity:0.85;}
+.item-fav-star.active{opacity:1;}
+.item-fav-star.active svg{fill:var(--star-gold);stroke:var(--star-gold);filter:drop-shadow(0 0 3px var(--star-gold-glow));}
+
+/* ===== AUDIO PLAYER ===== */
+.audio-player{
+  margin-top:12px;border-radius:10px;padding:12px;flex-shrink:0;
+  background:var(--panel-bg-med);
+  box-shadow:0 10px 24px var(--shadow-2);
+}
+.audio-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.audio-art{width:42px;height:42px;border-radius:6px;flex-shrink:0;background-size:cover;background-position:center;box-shadow:0 4px 10px var(--shadow-med);}
+.audio-meta{flex:1;min-width:0;}
+.audio-meta h5{margin:0 0 2px 0;font-size:11.5px;color:var(--hilite-text);letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.audio-meta p{margin:0;font-size:9px;color:var(--dim-text-2);font-family:"Courier New",monospace;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.audio-fav{position:static;width:22px;height:22px;flex-shrink:0;opacity:0.6;}
+.audio-fav svg{width:16px;height:16px;}
+
+.audio-seek-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.audio-time{font-size:9px;color:var(--dim-text-2);font-family:"Courier New",monospace;width:28px;flex-shrink:0;text-align:center;}
+.audio-seek-row input[type="range"]{
+  -webkit-appearance:none;appearance:none;flex:1;height:3px;border-radius:3px;
+  background:var(--line-dashed);outline:none;accent-color:var(--accent-track);cursor:pointer;
+}
+.audio-seek-row input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:11px;height:11px;border-radius:50%;
+  background:var(--hilite-text);box-shadow:0 0 0 3px var(--panel-bg-strong);cursor:pointer;
+}
+
+.audio-controls{display:flex;align-items:center;justify-content:center;gap:18px;}
+.audio-controls button{
+  background:transparent;border:none;cursor:pointer;color:var(--hilite-text);
+  display:flex;align-items:center;justify-content:center;transition:transform .15s ease;
+}
+.audio-controls button:hover{transform:scale(1.12);}
+.audio-controls button:disabled{opacity:0.3;cursor:default;}
+.audio-controls button:disabled:hover{transform:none;}
+#audioPlay{
+  width:34px;height:34px;border-radius:50%;background:var(--panel-bg-strong);
+  box-shadow:0 4px 12px var(--shadow-2), inset 0 0 0 1px var(--glass-highlight);
+}
+
+.status-strip{position:relative;margin-top:12px;padding:8px 12px;border-radius:8px;font-size:9px;color:var(--dim-text-2);font-family:"Courier New",monospace;letter-spacing:1px;display:flex;justify-content:space-between;flex-shrink:0;}
+.status-strip .dot{color:var(--hilite-text);}
+
+@media(max-width:1000px){.stage{transform:scale(0.78);transform-origin:center center;flex-direction:column;align-items:center;}}
+
+/* ===== MOBILE STEP FLOW =====
+   On small screens the experience becomes a 3-step wizard:
+   step 1 -> only the Content grid (choose a section)
+   step 2 -> only that section's list (search + list)
+   step 3 -> only the big display (left screen) showing the chosen item
+   Everything else in the right column (brand plate, mini live screen,
+   audio player, status strip) stays visible throughout since it's
+   small chrome, not part of the step content itself.
+*/
+@media(max-width:760px){
+  .stage{
+    transform:none;
+    flex-direction:column;
+    align-items:stretch;
+    gap:16px;
+    width:100%;
+    max-width:440px;
+  }
+  .left-col, .right-col{ width:100%; min-height:0; }
+  .left-frame{ padding:0; }
+
+  body.is-mobile .left-col{ display:none; }
+  body.is-mobile .content-grid{ display:none; }
+  body.is-mobile .list-panel-outer{ display:none; }
+
+  body.is-mobile[data-mobile-step="1"] .content-grid{ display:grid; }
+  body.is-mobile[data-mobile-step="1"] .content-image-space{ display:none; }
+
+  body.is-mobile #contentSectionLabel{ display:none; }
+  body.is-mobile[data-mobile-step="1"] #contentSectionLabel{ display:block; }
+
+  body.is-mobile[data-mobile-step="2"] .list-panel-outer{ display:flex; }
+
+  /* Step 3 (item detail) shows the display panel. It's placed first via
+     normal document order (the step-3 title block, then .left-col, then
+     .right-col all sit in that order in the markup) rather than being
+     pulled out with position:fixed or a flex "order" override — that way
+     it behaves like a normal in-flow section, sized and padded exactly
+     like the stage around it, instead of an overlay bar. */
+  body.is-mobile[data-mobile-step="3"] .left-col{ display:flex; }
+  body.is-mobile[data-mobile-step="3"] .content-image-space{ display:none; }
+
+  /* Step 3 shows a dedicated title above the display panel, matching the
+     look of steps 1 and 2 (both show the brand-plate inside .right-col,
+     which itself sits at the top of the stage on those steps). The real
+     brand-plate lives inside .right-col, and on step 3 .right-col renders
+     *after* .left-col (since .left-col comes first in source order for
+     step 3 to show the display up top) — so the real title would
+     otherwise land below the display instead of above it. This block is
+     a true sibling of .left-col placed before it in the markup, so it
+     renders above the display in normal flow — no fixed positioning, no
+     overlay, same width as every other step's header. A little extra
+     top padding (vs. the normal brand-plate) gives it some breathing
+     room under the very top edge of the stage, and text-align:center is
+     spelled out explicitly (rather than relying only on the inner flex
+     row) so it stays centered regardless of anything else on the page. */
+  body.is-mobile[data-mobile-step="3"] .mobile-step3-title{
+    display:block;
+    width:100%;
+    text-align:center;
+    padding-top:16px;
+  }
+  /* The real brand-plate (inside .right-col) would otherwise still render
+     further down the page on step 3, since .right-col comes after
+     .left-col in the flow — producing two "OnlineCathedral" titles on
+     screen at once. The .mobile-step3-title above is the only title step
+     3 should show, so hide this one specifically on step 3. Scoped to
+     .right-col so it never touches the duplicate itself. */
+  body.is-mobile[data-mobile-step="3"] .right-col .brand-plate{ display:none; }
+  /* Same reasoning for the step dots: the real ones live inside
+     .right-col and would render below the display on step 3. The
+     dedicated .mobile-step3-dots block (a sibling of .mobile-step3-title,
+     placed right after it — so it sits below the title's border line,
+     not squeezed above it) takes over in that case, so hide the
+     .right-col copy to avoid showing two rows of dots at once. */
+  body.is-mobile[data-mobile-step="3"] .right-col > .mobile-step-dots{ display:none; }
+  body.is-mobile[data-mobile-step="3"] .mobile-step3-dots{ display:flex; }
+
+  body.is-mobile .content-grid{ grid-template-columns:1fr 1fr; }
+  body.is-mobile .content-cell{ height:110px; }
+
+  body.is-mobile .back-arrow{ display:none; }
+  body.is-mobile[data-mobile-step="2"] .back-arrow{ display:inline-flex; }
+  body.is-mobile .back-arrow svg{ width:18px; height:18px; }
+
+  /* Step 3 (big display) has no list-panel back-arrow available since that
+     panel is hidden here — instead force the display's own back button
+     (normally reserved for album->artist navigation) to always be visible
+     on step 3, so there is always a way back to the list. */
+  body.is-mobile[data-mobile-step="3"] .disp-back-arrow{ display:flex !important; }
+
+  /* Flat icons read fine visually at their small size, but a 22px box is
+     tight to tap accurately on a touchscreen — give these a bigger hit
+     area on mobile while keeping the icon itself the same visual size. */
+  body.is-mobile .disp-back-arrow{ width:36px;height:36px;top:8px;left:6px; }
+  body.is-mobile .fav-toggle-btn{ width:36px;height:36px;top:8px;right:6px; }
+  body.is-mobile .book-nav button{ width:40px;height:40px; }
+  body.is-mobile .display-title-bar{ padding-left:50px;padding-right:50px; }
+
+  /* List-row and song-row star buttons are 18px, well under a comfortable
+     touch target — enlarge the tappable box on mobile without changing
+     the visual star size (the svg inside stays put via flex centering). */
+  body.is-mobile .item-fav-star{ width:34px; height:34px; top:0; right:-4px; }
+  body.is-mobile .song-row .song-fav-star{ right:16px; }
+  body.is-mobile .song-row{ padding-right:46px; }
+
+  body.is-mobile .list-panel-outer{ height:400px; }
+  body.is-mobile .left-col{ min-height:520px; }
+
+  /* iOS Safari zooms the whole page in when a focused input's font-size
+     is under 16px — bumping just this input avoids that jarring zoom
+     without changing how the search bar looks on desktop. */
+  body.is-mobile .search-bar input{ font-size:16px; }
+
+  body.is-mobile .mini-screen-wrap{ display:none; }
+  body.is-mobile[data-mobile-step="1"] .mini-screen-wrap{ display:block; }
+
+  .mobile-step-dots, .mobile-step3-dots{ display:none; justify-content:center; gap:6px; margin:8px 0 4px 0; }
+  body.is-mobile .mobile-step-dots{ display:flex; }
+  .mobile-step-dots span, .mobile-step3-dots span{ width:6px; height:6px; border-radius:50%; background:var(--dim-text-2); opacity:0.4; transition:all .2s ease; }
+  .mobile-step-dots span.on, .mobile-step3-dots span.on{ opacity:1; background:var(--hilite-text); width:16px; border-radius:4px; }
+
+  /* The desktop favorites star lives inside the left display, which only
+     exists on mobile at step 3 — meaning steps 1 and 2 had no way to reach
+     Favorites at all. This duplicate button stays on screen at every step. */
+  body.is-mobile .mobile-fav-btn{
+    display:flex; position:absolute; top:12px; right:8px; z-index:20;
+    width:36px;height:36px;
+    filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6));
+  }
+  body.is-mobile .mobile-fav-btn svg{fill:none;stroke:var(--dim-text);stroke-width:1.6;transition:all .2s ease;}
+  body.is-mobile .mobile-fav-btn.active svg{fill:var(--star-gold);stroke:var(--star-gold);}
+  /* Step 3 already shows the real display's own star button (left-col is
+     visible there), so hide this duplicate to avoid showing two stars. */
+  body.is-mobile[data-mobile-step="3"] .mobile-fav-btn{ display:none; }
+
+  /* Small screens still need a real safe viewport height so the audio
+     player + status strip don't get squeezed under the dynamic mobile
+     browser chrome. */
+  body.is-mobile .bg-wrap{ padding-top:18px; padding-bottom:18px; }
+}
+
+/* ===== REDUCED MOTION =====
+   Several decorative effects loop forever (the conic-gradient hue-shift
+   border, the rainbow text flow, the live-dot pulse, the background
+   blur-pulse crossfade, the canvas particle/waveform effects). None of
+   these carry information, so for anyone who's asked their OS for less
+   motion, freeze them to a single static frame instead of just speeding
+   them up or removing them — the layout and colors stay identical. */
+@media (prefers-reduced-motion: reduce){
+  .mc-border::after{ animation:none; }
+  .rainbow-text,
+  .title-row.colorized .t-online,
+  .title-row.colorized .t-cathedral,
+  .list-panel-titlebar .cat-name.colorized,
+  .rot-label.colorized{
+    animation:none;
+    background-position:0% 50%;
+  }
+  .live-dot{ animation:none; opacity:0.85; }
+  .wave-canvas-layer.bg-transitioning{ animation:none; }
+  *{ scroll-behavior:auto !important; }
+}
+
+/* ===== KEYBOARD FOCUS =====
+   The default browser outline is easy to lose against this dark,
+   borderless design, so real focusable controls (buttons, the search
+   input, the seek slider) get a visible ring that matches the site's
+   accent instead. Scoped to :focus-visible so it only appears for
+   keyboard/assistive-tech navigation, not every mouse click. */
+button:focus-visible,
+input:focus-visible{
+  outline:2px solid var(--hilite-text);
+  outline-offset:2px;
+  border-radius:4px;
+}
+.icon-btn:focus-visible{ opacity:0.8; }
+</style>
+<link rel="preload" as="image" href="images/background-1.jpg" fetchpriority="high">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
+</head>
+<body>
+
+<div id="waveStage">
+  <div id="waveLayerA" class="wave-canvas-layer"></div>
+  <div id="waveLayerB" class="wave-canvas-layer"></div>
+</div>
+
+<div class="bg-wrap">
+<div class="stage">
+
+  <!-- Mobile-only title + step-dots shown above the display on step 3
+       (item detail). Steps 1 and 2 use the brand-plate + dots inside
+       .right-col further down; this duplicate exists because on step 3
+       .left-col (the display) needs to render above .right-col, so the
+       real brand-plate/dots (nested inside right-col) would otherwise
+       render below the display instead of above it. It's a true sibling
+       of .left-col placed before it in the markup, and rendered in
+       normal flow (not fixed/overlaid), so it looks and sits exactly
+       like the header on steps 1-2. Hidden everywhere else / from AT so
+       there's never a duplicate "OnlineCathedral" announced. -->
+  <div class="brand-plate mobile-step3-title" id="mobileStep3Title" aria-hidden="true">
+    <div class="title-row">
+      <span class="t-online">Online</span><span class="t-cathedral">Cathedral</span>
+    </div>
+  </div>
+  <div class="mobile-step3-dots" aria-hidden="true">
+    <span data-step="1"></span><span data-step="2"></span><span data-step="3"></span>
+  </div>
+
+  <div class="left-col floater">
+    <div class="left-frame">
+      <div class="left-screen mc-border">
+        <div class="display-title-bar">
+          <button class="disp-back-arrow icon-btn" id="dispBackArrow" aria-label="Back" style="display:none;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="eyebrow">now viewing</div>
+          <h2 id="dispTitle">Select an item from the list</h2>
+          <div class="disp-subtitle" id="dispSubtitle"></div>
+          <button class="fav-toggle-btn icon-btn" id="favToggleBtn" aria-label="View favorites">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.3 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>
+          </button>
+        </div>
+        <div class="display-body" id="dispBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-col floater">
+    <button class="mobile-fav-btn icon-btn" id="mobileFavBtn" aria-label="View favorites">
+      <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.3 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>
+    </button>
+    <div class="brand-plate">
+      <div class="title-row" id="titleRow">
+        <span class="t-online">Online</span><span class="t-cathedral">Cathedral</span>
+      </div>
+    </div>
+
+    <div class="mobile-step-dots" id="mobileStepDots">
+      <span data-step="1"></span><span data-step="2"></span><span data-step="3"></span>
+    </div>
+
+    <div class="section-label rainbow-text" id="contentSectionLabel">Content</div>
+    <div class="content-grid" id="contentGrid">
+      <div class="content-cell mc-border" data-cat="bible"><canvas></canvas><div class="content-cell-label">Bible</div></div>
+      <div class="content-cell mc-border" data-cat="books"><canvas></canvas><div class="content-cell-label">Books</div></div>
+      <div class="content-cell mc-border" data-cat="images"><canvas></canvas><div class="content-cell-label">Images</div></div>
+      <div class="content-cell mc-border" data-cat="symphonies"><canvas></canvas><div class="content-cell-label">Symphonies</div></div>
+    </div>
+
+    <div class="content-image-space"></div>
+
+    <div class="mini-screen-wrap">
+      <div class="mini-screen mc-border">
+        <div class="mini-live-tag"><span class="live-dot"></span>live</div>
+        <div class="mini-clock-tag" id="miniClock">00:00:00</div>
+        <canvas id="particleCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="list-panel-outer">
+      <div class="list-panel-titlebar">
+        <span class="back-arrow" id="backArrow"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <span class="cat-name" id="catLabel">Content List</span>
+      </div>
+
+      <div class="search-bar mc-border">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search this section...">
+      </div>
+
+      <div class="list-scroll-wrap mc-border">
+        <div class="rot-label" id="rotLabel">bible</div>
+        <div class="list-items" id="listItems"></div>
+      </div>
+    </div>
+
+    <div class="audio-player mc-border">
+      <div class="audio-top">
+        <div class="audio-art" id="audioArt"></div>
+        <div class="audio-meta">
+          <h5 id="audioTitle">—</h5>
+          <p id="audioArtist">—</p>
+        </div>
+        <button class="item-fav-star audio-fav" id="audioFavStar" aria-label="Save to favorites">
+          <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.3 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>
+        </button>
+      </div>
+      <div class="audio-seek-row">
+        <span class="audio-time" id="audioCurTime">0:00</span>
+        <input type="range" id="audioSeek" min="0" max="100" value="0">
+        <span class="audio-time" id="audioDurTime">0:00</span>
+      </div>
+      <div class="audio-controls">
+        <button id="audioPrev" aria-label="Previous">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM18 6L9.5 12L18 18z"/></svg>
+        </button>
+        <button id="audioPlay" aria-label="Play">
+          <svg id="audioPlayIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button id="audioNext" aria-label="Next">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6l8.5 6L6 18zM16 6h2v12h-2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="status-strip mc-border">
+      <span><span class="dot">●</span> online</span>
+      <span id="clockOut">00:00:00</span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+/* ============ THEME ============
+   Dark is the only theme now — no toggle, no light variant. */
+function ink(alpha){ return `rgba(236,234,228,${alpha})`; }
+
+/* ============ BACKGROUND: dual-layer image crossfade ============
+   Two stacked full-screen layers (A/B) hold background images per
+   section. Switching sections swaps the hidden layer's image, fades
+   it in over the visible one, and runs the blur-pulse transition
+   already defined on .bg-transitioning. Drop your files in an
+   "images" folder next to this HTML, named background-1.jpg .. background-5.jpg:
+     1 = default (no section selected)
+     2 = bible
+     3 = books
+     4 = images
+     5 = symphonies
+*/
+const waveLayerA = document.getElementById('waveLayerA');
+const waveLayerB = document.getElementById('waveLayerB');
+const BG_IMAGES = {
+  default: 'images/background-1.jpg',
+  bible: 'images/background-2.jpg',
+  books: 'images/background-3.jpg',
+  images: 'images/background-4.jpg',
+  symphonies: 'images/background-5.jpg'
+};
+
+/* Preload every background image as soon as the script runs (not lazily on
+   first use). This is what actually fixes the perceived "slow loading":
+   without it, the browser only starts fetching a section's image the moment
+   you click it, so the crossfade begins on an empty/blank layer and the
+   picture pops in mid-transition. Kicking all 5 requests off immediately
+   means that by the time someone clicks a section, the image is already
+   sitting in cache and the crossfade is instant. */
+const bgImageCache = {};
+function preloadBackgrounds(){
+  Object.entries(BG_IMAGES).forEach(([key, url])=>{
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    bgImageCache[key] = img;
+  });
+}
+preloadBackgrounds();
+
+const bgLayers = {
+  A: { el: waveLayerA, cat: 'default' },
+  B: { el: waveLayerB, cat: null }
+};
+let activeBgLayer = 'A';
+bgLayers.A.el.style.backgroundImage = `url('${BG_IMAGES.default}')`;
+
+let bgTransitionTimer = null;
+function switchBackground(cat){
+  const current = bgLayers[activeBgLayer];
+  if(current.cat === cat) return;
+  const targetKey = activeBgLayer === 'A' ? 'B' : 'A';
+  const target = bgLayers[targetKey];
+
+  target.cat = cat;
+  target.el.style.backgroundImage = `url('${BG_IMAGES[cat] || BG_IMAGES.default}')`;
+
+  // Flip which layer is "active" immediately rather than waiting for the
+  // fade to finish. If this stayed pending until a setTimeout (as before),
+  // clicking a second category mid-fade would see the stale activeBgLayer,
+  // grab the SAME layer as the target again, and overwrite its image while
+  // it was still fading in - causing a visible pop instead of a crossfade.
+  activeBgLayer = targetKey;
+
+  // Force a reflow before re-adding the class so the blur-pulse animation
+  // restarts every time, even if this exact layer was already mid-pulse a
+  // moment ago (re-adding a class that's already present is a no-op in CSS
+  // and would otherwise silently skip the animation on fast repeat clicks).
+  if(bgTransitionTimer) clearTimeout(bgTransitionTimer);
+  current.el.classList.remove('bg-transitioning');
+  target.el.classList.remove('bg-transitioning');
+  void target.el.offsetWidth; // force reflow to restart the animation cleanly
+  current.el.classList.add('bg-transitioning');
+  target.el.classList.add('bg-transitioning');
+
+  target.el.style.opacity = '1';
+  current.el.style.opacity = '0';
+
+  bgTransitionTimer = setTimeout(()=>{
+    current.el.classList.remove('bg-transitioning');
+    target.el.classList.remove('bg-transitioning');
+  }, 1150);
+}
+
+/* Tapping/clicking the "OnlineCathedral" title acts as a home button:
+   it clears the current section, drops the left display back to its
+   empty state, and eases the background back to the default image
+   using the same blur-pulse crossfade as switching sections. */
+function goHome(){
+  switchBackground('default');
+  document.querySelectorAll('.content-cell').forEach(c=>c.classList.remove('active'));
+  activeCat = null;
+  setTitleColorized(false);
+  document.getElementById('catLabel').classList.remove('colorized');
+  document.getElementById('rotLabel').classList.remove('colorized');
+  exitFavoritesView();
+  document.getElementById('dispTitle').textContent = 'Select an item from the list';
+  document.getElementById('dispSubtitle').style.display = 'none';
+  document.getElementById('dispBackArrow').style.display = 'none';
+  setDispBody('');
+  document.querySelectorAll('.list-item').forEach(e=>e.classList.remove('active'));
+  if(document.body.classList.contains('is-mobile')) goToStep(1);
+}
+document.getElementById('titleRow').addEventListener('click', goHome);
+
+/* There are two ".title-row" elements in the DOM: the real one inside
+   .right-col, and the duplicate shown above the display on mobile
+   step 3 (see .mobile-step3-title). Both need to flip into the rainbow
+   "colorized" state together whenever a section is selected, or the
+   duplicate title is left blank/plain while the real (usually hidden)
+   one underneath was the only one actually getting the class. */
+function setTitleColorized(on){
+  document.querySelectorAll('.title-row').forEach(el=>el.classList.toggle('colorized', on));
+}
+
+/* Every canvas effect below runs its own requestAnimationFrame loop
+   forever. That's fine while the tab is visible, but with several loops
+   stacked up it's needless CPU/GPU/battery drain the moment the tab is
+   backgrounded. This single flag lets every loop skip its draw work
+   (while still re-scheduling itself) whenever the page isn't visible,
+   and they all resume instantly when it becomes visible again. */
+let pageVisible = !document.hidden;
+document.addEventListener('visibilitychange', ()=>{ pageVisible = !document.hidden; });
+
+/* ============ MINI LIVE PARTICLE SCREEN ============ */
+function setupParticles(canvas, count, linkDist){
+  const ctx = canvas.getContext('2d');
+  let cw, ch;
+  function resize(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    cw = canvas.width = rect.width;
+    ch = canvas.height = rect.height;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  const pts = [];
+  for(let i=0;i<count;i++){
+    pts.push({x:Math.random()*cw, y:Math.random()*ch, vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4, r:Math.random()*1.1+0.6});
+  }
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!pageVisible) return;
+    ctx.clearRect(0,0,cw,ch);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>cw) p.vx*=-1;
+      if(p.y<0||p.y>ch) p.vy*=-1;
+    });
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const a=pts[i], b=pts[j];
+        const dx=a.x-b.x, dy=a.y-b.y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<linkDist){
+          ctx.strokeStyle = ink((0.28*(1-dist/linkDist)));
+          ctx.lineWidth=0.6;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+    }
+    pts.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = ink(0.55);
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 3;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+  }
+  draw();
+}
+setupParticles(document.getElementById('particleCanvas'), 22, 46);
+
+/* ============ CONTENT CELL MINI VISUALS ============ */
+function effectParticlesRise(canvas, getColored){
+  const ctx = canvas.getContext('2d');
+  let cw,ch;
+  function resize(){ const r=canvas.getBoundingClientRect(); cw=canvas.width=r.width; ch=canvas.height=r.height; }
+  resize(); window.addEventListener('resize', resize);
+  const pts = [];
+  for(let i=0;i<16;i++) pts.push({x:Math.random()*cw,y:Math.random()*ch,vy:-(Math.random()*0.15+0.05),r:Math.random()*1+0.5,tw:Math.random()*Math.PI*2, hue:Math.random()*360});
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!pageVisible) return;
+    ctx.clearRect(0,0,cw,ch);
+    const colored = getColored();
+    pts.forEach(p=>{
+      p.y += p.vy; p.tw += 0.05;
+      if(p.y<-4) p.y = ch+4;
+      const alpha = 0.4 + Math.sin(p.tw)*0.3;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      if(colored){
+        p.hue = (p.hue + 0.4) % 360;
+        ctx.fillStyle = `hsla(${p.hue},70%,55%,${Math.max(0.25,alpha)})`;
+        ctx.shadowColor = `hsla(${p.hue},80%,65%,0.8)`;
+      } else {
+        ctx.fillStyle = ink(Math.max(0.12,alpha));
+        ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      }
+      ctx.shadowBlur = 4;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+  }
+  draw();
+}
+
+function effectBookSpines(canvas, getColored){
+  const ctx = canvas.getContext('2d');
+  let cw,ch;
+  function resize(){ const r=canvas.getBoundingClientRect(); cw=canvas.width=r.width; ch=canvas.height=r.height; }
+  resize(); window.addEventListener('resize', resize);
+  const n = 9;
+  const spines = [];
+  for(let i=0;i<n;i++){
+    spines.push({ phase: Math.random()*Math.PI*2, speed: 0.02+Math.random()*0.02, hue: (i/n)*360 });
+  }
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!pageVisible) return;
+    ctx.clearRect(0,0,cw,ch);
+    const colored = getColored();
+    const spineW = cw/n;
+    spines.forEach((s,i)=>{
+      s.phase += s.speed;
+      const lift = Math.sin(s.phase) * (ch*0.18);
+      const topY = ch*0.22 - Math.max(0,lift);
+      const x = i*spineW + spineW*0.15;
+      const w = spineW*0.7;
+      const hgt = ch - topY - 4;
+      if(colored){
+        s.hue = (s.hue + 0.3) % 360;
+        ctx.fillStyle = `hsla(${s.hue},65%,55%,0.55)`;
+      } else {
+        ctx.fillStyle = ink(0.22);
+      }
+      ctx.fillRect(x, topY, w, hgt);
+    });
+  }
+  draw();
+}
+
+function effectGradientBlobs(canvas, getColored){
+  const ctx = canvas.getContext('2d');
+  let cw,ch;
+  function resize(){ const r=canvas.getBoundingClientRect(); cw=canvas.width=r.width; ch=canvas.height=r.height; }
+  resize(); window.addEventListener('resize', resize);
+  let tt = 0;
+  const hues = [10, 140, 220];
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!pageVisible) return;
+    ctx.clearRect(0,0,cw,ch);
+    const colored = getColored();
+    for(let i=0;i<3;i++){
+      const bx = cw/2 + Math.sin(tt*0.02 + i*2)*cw*0.32;
+      const by = ch/2 + Math.cos(tt*0.025 + i*2.4)*ch*0.32;
+      const grad = ctx.createRadialGradient(bx,by,0,bx,by,26);
+      if(colored){
+        hues[i] = (hues[i] + 0.5) % 360;
+        grad.addColorStop(0, `hsla(${hues[i]},70%,60%,0.5)`);
+        grad.addColorStop(1, `hsla(${hues[i]},70%,60%,0)`);
+      } else {
+        grad.addColorStop(0, ink(0.22));
+        grad.addColorStop(1, ink(0));
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(bx,by,26,0,Math.PI*2);
+      ctx.fill();
+    }
+    tt += 1;
+  }
+  draw();
+}
+
+function effectWaveformBars(canvas, getColored){
+  const ctx = canvas.getContext('2d');
+  let cw,ch;
+  function resize(){ const r=canvas.getBoundingClientRect(); cw=canvas.width=r.width; ch=canvas.height=r.height; }
+  resize(); window.addEventListener('resize', resize);
+  const bars = 20;
+  let tt = 0;
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!pageVisible) return;
+    ctx.clearRect(0,0,cw,ch);
+    const colored = getColored();
+    const bw = cw/bars;
+    for(let i=0;i<bars;i++){
+      const hgt = (Math.sin(tt*0.08 + i*0.7) * 0.5 + 0.5) * (ch*0.7) + ch*0.08;
+      if(colored){
+        const hue = (i/bars)*300 + tt*0.5;
+        ctx.fillStyle = `hsla(${hue%360},70%,55%,0.55)`;
+      } else {
+        ctx.fillStyle = ink(0.28);
+      }
+      ctx.fillRect(i*bw+1, ch-hgt, bw-2, hgt);
+    }
+    tt += 1;
+  }
+  draw();
+}
+
+let activeCat = null;
+document.querySelectorAll('.content-cell').forEach(cell=>{
+  const cat = cell.dataset.cat;
+  const canvas = cell.querySelector('canvas');
+  const getColored = () => activeCat === cat;
+  if(cat === 'bible') effectParticlesRise(canvas, getColored);
+  else if(cat === 'books') effectBookSpines(canvas, getColored);
+  else if(cat === 'images') effectGradientBlobs(canvas, getColored);
+  else if(cat === 'symphonies') effectWaveformBars(canvas, getColored);
+});
+
+/* ============ CONTENT DATA ============
+   ------------------------------------------------------------------
+   FOLDER STRUCTURE — read this before adding content
+   ------------------------------------------------------------------
+   Everything the site displays is a plain file sitting in a folder next
+   to this HTML file. Nothing needs to be uploaded through the browser;
+   just drop files in the right place and add one matching entry below
+   (or set "file" to the exact filename, otherwise the title is
+   slugified automatically — see slugify()/PATHS below).
+
+     content/bible/<file>.pdf            one PDF per chapter entry
+     content/books/<file>.pdf            one PDF per book entry
+     imagese/<file>.jpg                  one image per gallery entry (see imagesjson manifest)
+     content/music/<Artist>/<Album>/<Song>.mp3
+       - one folder per artist
+       - inside it, one folder per album (album names must be unique —
+         two different artists should not reuse the same album folder
+         name, since album lookups are keyed by title)
+       - inside each album folder, one audio file per song, plus an
+         optional cover.jpg for the album artwork
+
+   IMAGES SECTION: instead of hand-editing DATA.images below, entries are
+   fetched at runtime from imagesjson (a flat JSON array living next to
+   this HTML, in the imagese/ folder), so the gallery can grow to
+   hundreds/thousands of entries without touching this file. See
+   loadImagesManifest() further down. Each manifest entry looks like:
+     { "title": "...", "artist": "...", "year": "...", "file": "...", "type": "Painting" }
+   The site maps "type" -> the same "tech" field used elsewhere for the
+   TYPE: row in the display, and treats "artist" as the item's byline.
+   ------------------------------------------------------------------ */
+
+const PATHS = {
+  bible: 'content/bible/',
+  books: 'content/books/',
+  images: 'imagese/',
+  music: 'content/music/'
+};
+
+function slugify(str){
+  return String(str||'').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/(^-|-$)/g,'');
+}
+
+const DATA = {
+  // Bible: one entry per chapter/passage. "file" (optional) is the PDF
+  // filename inside content/bible/ — otherwise it's built from the title.
+  bible: [
+    { title: "", book: "", chapterLabel: "", file: "", short: "", tech: "" }
+  ],
+
+  // Books: one entry per book. "file" (optional) is the PDF filename
+  // inside content/books/ — otherwise it's built from the title.
+  books: [
+    { title: "", author: "", year: "", file: "", short: "", tech: "" }
+  ],
+
+  // Images: populated at runtime from imagesjson via loadImagesManifest().
+  // Starts empty (not a blank template entry) since the list view already
+  // handles an empty array by showing "No results found."
+  images: [],
+
+  // Symphonies: Artist -> Albums -> Songs. Duplicate the artist block for
+  // each new artist, the album block for each new album, and the song
+  // line for each new track. "file" (optional) on a song is the audio
+  // filename inside its album folder — otherwise built from the song title.
+  symphonies: [
+    {
+      title: "",     // Artist name (folder: content/music/<Artist>/)
+      short: "",
+      cover: "",     // optional artist image filename inside content/images/
+      albums: [
+        {
+          title: "", // Album name (folder: content/music/<Artist>/<Album>/) — must be unique
+          year: "", tech: "",
+          cover: "", // optional cover image filename inside the album folder (defaults to cover.jpg)
+          songs: [
+            { title: "", duration: 0, file: "" }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+/* ===== Images manifest loader =====
+   Fetches imagesjson (array of {title, artist, year, file, type}) from
+   the same folder as the image files themselves (PATHS.images, i.e.
+   "imagese/") and populates DATA.images so the rest of the site's
+   existing rendering code (renderList, selectItem, thumbFor, favorites,
+   search, etc.) works completely unmodified — it just sees a normal
+   DATA.images array once this resolves.
+   "type" from the manifest is mapped to "tech" because that's the field
+   name selectItem()/mediaDisplayHTML() already read for the TYPE: row. */
+let imagesManifestLoaded = false;
+let imagesManifestLoading = null;
+
+async function loadImagesManifest(){
+  if(imagesManifestLoaded) return;
+  if(imagesManifestLoading) return imagesManifestLoading;
+  imagesManifestLoading = (async () => {
+    try{
+      const res = await fetch(PATHS.images + 'imagesjson');
+      if(!res.ok) throw new Error('manifest fetch failed: ' + res.status);
+      const raw = await res.json();
+      DATA.images = raw.map(entry => ({
+        title: entry.title || '',
+        artist: entry.artist || '',
+        year: entry.year || '',
+        file: entry.file || '',
+        short: entry.short || '',
+        tech: entry.type || entry.tech || ''
+      }));
+    } catch(err){
+      // No manifest yet (e.g. still being uploaded) — leave DATA.images
+      // empty; the list view already shows "No results found." gracefully.
+      console.warn('Could not load images manifest:', err);
+      DATA.images = [];
+    } finally {
+      imagesManifestLoaded = true;
+      // If the Images category is the one currently open when this
+      // resolves, refresh the list so the fetched entries actually appear
+      // instead of waiting for the next category click.
+      if(currentCat === 'images') renderList('images');
+    }
+  })();
+  return imagesManifestLoading;
+}
+// Kick the fetch off immediately (same "preload early" approach used for
+// the background images) so the manifest is very likely already resolved
+// by the time someone clicks into the Images category.
+loadImagesManifest();
+
+/* Resolve the display thumbnail for a bible/books/images entry: a real
+   image if the folder has one, otherwise a neutral placeholder so the
+   layout never breaks while content is still being filled in. */
+function thumbFor(cat, item){
+  if(item.file || item.title) return `url('${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}')`;
+  return 'linear-gradient(135deg,#e6e6ea,#cfcfd4)';
+}
+function albumCoverFor(artist, album){
+  const file = album.cover || 'cover.jpg';
+  return `url('${PATHS.music}${slugify(artist.title)}/${slugify(album.title)}/${file}')`;
+}
+function songSrcFor(artist, album, song){
+  const file = song.file || (slugify(song.title)+'.mp3');
+  return `${PATHS.music}${slugify(artist.title)}/${slugify(album.title)}/${file}`;
+}
+
+/* Flat lookup helpers for the Symphonies artist/album/song tree */
+function symArtists(){ return DATA.symphonies; }
+function findArtist(title){ return DATA.symphonies.find(a=>a.title===title); }
+function findAlbum(artistTitle, albumTitle){
+  const artist = findArtist(artistTitle);
+  if(!artist) return null;
+  return artist.albums.find(al=>al.title===albumTitle);
+}
+function allAlbumsFlat(){
+  const out = [];
+  DATA.symphonies.forEach(artist=>{
+    artist.albums.forEach(album=>{
+      out.push({ artist: artist.title, album });
+    });
+  });
+  return out;
+}
+
+
+const STAR_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.3 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>';
+
+let currentCat = "bible";
+let searchTerm = "";
+let showingFavorites = false;
+const favorites = new Set();
+
+function favKey(cat,title){ return cat+'|'+title; }
+function isFav(cat,title){ return favorites.has(favKey(cat,title)); }
+function toggleFavorite(cat,title){
+  const k = favKey(cat,title);
+  if(favorites.has(k)) favorites.delete(k); else favorites.add(k);
+  refreshFavStars();
+  if(showingFavorites) renderFavoritesView();
+}
+function refreshFavStars(){
+  document.querySelectorAll('#listItems .item-fav-star').forEach(btn=>{
+    btn.classList.toggle('active', isFav(btn.dataset.cat, btn.dataset.title));
+  });
+  updateAudioFavStar();
+}
+
+function getFilteredItems(cat){
+  const items = DATA[cat];
+  if(!searchTerm) return items;
+  return items.filter(it => it.title.toLowerCase().includes(searchTerm.toLowerCase()));
+}
+
+/* Library folders can hold thousands of entries, so the list renders in
+   pages instead of building the whole DOM at once — each page is appended
+   only when the user scrolls near the bottom. Combined with the
+   content-visibility:auto rule on .list-item (see CSS), the browser skips
+   layout/paint work for rows that are off-screen. */
+const LIST_PAGE_SIZE = 60;
+let listRenderState = { cat: null, items: [], rendered: 0 };
+
+function renderListItemEl(cat, item){
+  const el = document.createElement('div');
+  el.className = 'list-item';
+  el.innerHTML = `
+    <div class="list-item-thumb" style="background:${thumbFor(cat,item)}"></div>
+    <div class="list-item-text">
+      <h4>${item.title}</h4>
+      <p>${item.short||''}</p>
+      <span class="launch-tag">open ▸</span>
+    </div>
+    <button class="item-fav-star ${isFav(cat,item.title)?'active':''}" data-cat="${cat}" data-title="${(item.title||'').replace(/"/g,'&quot;')}" aria-label="Save to favorites">${STAR_SVG}</button>
+  `;
+  el.addEventListener('click', ()=>selectItem(item, el));
+  el.querySelector('.item-fav-star').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    toggleFavorite(cat, item.title);
+  });
+  return el;
+}
+
+function renderListPage(){
+  const { cat, items, rendered } = listRenderState;
+  const wrap = document.getElementById('listItems');
+  const more = document.getElementById('listLoadMore');
+  const next = items.slice(rendered, rendered + LIST_PAGE_SIZE);
+  const frag = document.createDocumentFragment();
+  next.forEach(item => frag.appendChild(renderListItemEl(cat, item)));
+  if(more) wrap.insertBefore(frag, more);
+  else wrap.appendChild(frag);
+  listRenderState.rendered += next.length;
+  if(more) more.style.display = listRenderState.rendered < items.length ? 'block' : 'none';
+}
+
+function renderList(cat){
+  const items = getFilteredItems(cat).slice().sort((a,b)=>a.title.localeCompare(b.title));
+  const wrap = document.getElementById('listItems');
+  wrap.innerHTML = '';
+  if(items.length === 0){
+    wrap.innerHTML = `<div style="color:var(--dim-text-2); font-size:11px; font-family:'Courier New',monospace; padding:10px; text-align:center;">No results found.</div>`;
+    listRenderState = { cat, items: [], rendered: 0 };
+    return;
+  }
+  const more = document.createElement('div');
+  more.className = 'list-load-more';
+  more.id = 'listLoadMore';
+  more.textContent = 'Scroll for more…';
+  more.style.display = 'none';
+  wrap.appendChild(more);
+  listRenderState = { cat, items, rendered: 0 };
+  renderListPage();
+}
+
+/* Fires once the sentinel row nears the visible area — appends the next
+   page instead of re-rendering everything on every scroll pixel. */
+const listScrollObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting && listRenderState.rendered < listRenderState.items.length){
+      renderListPage();
+    }
+  });
+}, { root: document.getElementById('listItems'), rootMargin: '200px' });
+new MutationObserver(()=>{
+  const sentinel = document.getElementById('listLoadMore');
+  if(sentinel) listScrollObserver.observe(sentinel);
+}).observe(document.getElementById('listItems'), { childList: true });
+
+/* ===== Real PDF viewer (Bible chapters / Books) =====
+   Each entry (bible chapter or book) can have its own uploaded PDF, kept
+   in memory for this session (pdfDocsByKey: key -> pdfjs document object).
+   Nothing is persisted to disk/storage; re-uploading is needed after reload. */
+const pdfDocsByKey = {};   // key -> pdfjs PDFDocumentProxy
+const pdfPageByKey = {};   // key -> current page number (1-based)
+let pdfViewerKey = null;   // key of the entry currently shown in the display
+let pdfRenderToken = 0;    // guards against out-of-order renders when paging fast
+
+if(window['pdfjsLib']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+}
+
+function pdfKeyFor(cat, title){ return cat + '::' + title; }
+
+function pdfViewerHTML(key, showMeta, type, year){
+  const hasDoc = !!pdfDocsByKey[key];
+  return `
+    <div class="pdf-viewport" id="pdfViewport">
+      ${hasDoc ? `
+        <div class="pdf-canvas-wrap" id="pdfCanvasWrap"><canvas id="pdfCanvas"></canvas></div>
+      ` : `
+        <div class="pdf-empty-state" id="pdfEmptyState">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <div>No PDF loaded yet for this entry.<br>Upload one to start reading.</div>
+          <button class="pdf-upload-btn" id="pdfUploadBtn">Upload PDF</button>
+        </div>
+      `}
+    </div>
+    <div class="book-nav">
+      <button id="bookPrev" class="icon-btn" aria-label="Previous page"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span id="bookPageIndicator">${hasDoc ? `Page ${pdfPageByKey[key]} / ${pdfDocsByKey[key].numPages}` : 'No PDF'}</span>
+      <button id="bookNext" class="icon-btn" aria-label="Next page"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      ${hasDoc ? `<button id="pdfReplaceBtn" class="icon-btn" aria-label="Replace PDF" title="Replace PDF"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>` : ''}
+    </div>
+    <input type="file" accept="application/pdf" id="pdfFileInput" style="display:none;">
+    ${showMeta ? `<div class="display-meta"><div>YEAR: <span>${year}</span></div><div>TYPE: <span>${type}</span></div></div>` : ''}
+  `;
+}
+
+async function renderPdfPage(key, pageNum){
+  const doc = pdfDocsByKey[key];
+  if(!doc) return;
+  const myToken = ++pdfRenderToken;
+  const page = await doc.getPage(pageNum);
+  if(myToken !== pdfRenderToken || pdfViewerKey !== key) return; // superseded by a newer request
+  const canvas = document.getElementById('pdfCanvas');
+  if(!canvas) return;
+  const wrap = document.getElementById('pdfCanvasWrap');
+  const targetWidth = Math.min(wrap ? wrap.clientWidth * 0.92 : 380, 700);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = targetWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+  const ctx = canvas.getContext('2d');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: ctx, viewport }).promise;
+}
+
+function refreshPdfNav(key){
+  const doc = pdfDocsByKey[key];
+  const indicator = document.getElementById('bookPageIndicator');
+  const prevBtn = document.getElementById('bookPrev');
+  const nextBtn = document.getElementById('bookNext');
+  if(!doc){
+    if(indicator) indicator.textContent = 'No PDF';
+    if(prevBtn) prevBtn.disabled = true;
+    if(nextBtn) nextBtn.disabled = true;
+    return;
+  }
+  const page = pdfPageByKey[key];
+  if(indicator) indicator.textContent = `Page ${page} / ${doc.numPages}`;
+  if(prevBtn) prevBtn.disabled = page <= 1;
+  if(nextBtn) nextBtn.disabled = page >= doc.numPages;
+}
+
+const pdfAutoFetchAttempted = new Set(); // keys we've already tried to auto-load from disk, success or fail
+
+async function loadPdfFromArrayBuffer(key, arrayBuffer){
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const doc = await loadingTask.promise;
+  pdfDocsByKey[key] = doc;
+  pdfPageByKey[key] = 1;
+  if(pdfViewerKey === key){
+    rebuildPdfViewportMarkup(key);
+    await renderPdfPage(key, 1);
+    refreshPdfNav(key);
+  }
+}
+
+/* Tries to load the PDF straight from its conventional folder path
+   (content/bible/<file>.pdf or content/books/<file>.pdf) so entries work
+   the moment a matching file is dropped in — no manual upload needed.
+   Falls back silently to the upload UI already in the markup if the file
+   isn't there yet (e.g. during local testing without a server). */
+async function autoFetchPdf(cat, item, key){
+  if(pdfAutoFetchAttempted.has(key) || pdfDocsByKey[key]) return;
+  pdfAutoFetchAttempted.add(key);
+  const url = PATHS[cat] + (item.file || (slugify(item.title) + '.pdf'));
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const buf = await res.arrayBuffer();
+    await loadPdfFromArrayBuffer(key, buf);
+  } catch(err){ /* no file at that path yet — upload UI stays available */ }
+}
+
+async function loadPdfForKey(key, file){
+  const viewport = document.getElementById('pdfViewport');
+  if(viewport){
+    viewport.innerHTML = `<div class="pdf-loading-state">Loading PDF…</div>`;
+  }
+  try{
+    const arrayBuffer = await file.arrayBuffer();
+    await loadPdfFromArrayBuffer(key, arrayBuffer);
+  } catch(err){
+    if(viewport){
+      viewport.innerHTML = `<div class="pdf-empty-state">Could not read that PDF. Please try another file.<br><button class="pdf-upload-btn" id="pdfUploadBtnRetry">Upload PDF</button></div>`;
+      const retry = document.getElementById('pdfUploadBtnRetry');
+      if(retry) retry.addEventListener('click', ()=> document.getElementById('pdfFileInput').click());
+    }
+  }
+}
+
+function rebuildPdfViewportMarkup(key){
+  const viewport = document.getElementById('pdfViewport');
+  if(!viewport) return;
+  const hasDoc = !!pdfDocsByKey[key];
+  viewport.innerHTML = hasDoc
+    ? `<div class="pdf-canvas-wrap" id="pdfCanvasWrap"><canvas id="pdfCanvas"></canvas></div>`
+    : `<div class="pdf-empty-state" id="pdfEmptyState">
+         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+         <div>No PDF loaded yet for this entry.<br>Upload one to start reading.</div>
+         <button class="pdf-upload-btn" id="pdfUploadBtn">Upload PDF</button>
+       </div>`;
+  wirePdfUploadButton();
+}
+
+function wirePdfUploadButton(){
+  const btn = document.getElementById('pdfUploadBtn');
+  if(btn) btn.addEventListener('click', ()=> document.getElementById('pdfFileInput').click());
+  const replaceBtn = document.getElementById('pdfReplaceBtn');
+  if(replaceBtn) replaceBtn.addEventListener('click', ()=> document.getElementById('pdfFileInput').click());
+}
+
+function initPdfViewer(key, cat, item){
+  pdfViewerKey = key;
+  wirePdfUploadButton();
+
+  const fileInput = document.getElementById('pdfFileInput');
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(file) loadPdfForKey(key, file);
+    fileInput.value = '';
+  });
+
+  document.getElementById('bookPrev').addEventListener('click', ()=>{
+    const doc = pdfDocsByKey[key];
+    if(!doc) return;
+    if(pdfPageByKey[key] > 1){
+      pdfPageByKey[key]--;
+      renderPdfPage(key, pdfPageByKey[key]);
+      refreshPdfNav(key);
+    }
+  });
+  document.getElementById('bookNext').addEventListener('click', ()=>{
+    const doc = pdfDocsByKey[key];
+    if(!doc) return;
+    if(pdfPageByKey[key] < doc.numPages){
+      pdfPageByKey[key]++;
+      renderPdfPage(key, pdfPageByKey[key]);
+      refreshPdfNav(key);
+    }
+  });
+
+  if(pdfDocsByKey[key]){
+    renderPdfPage(key, pdfPageByKey[key]);
+  } else if(cat && item){
+    autoFetchPdf(cat, item, key);
+  }
+}
+
+function mediaDisplayHTML(thumb, year, type){
+  return `
+    <div class="media-image" style="background:${thumb}"></div>
+    <div class="display-meta">
+      <div>YEAR: <span>${year}</span></div>
+      <div>TYPE: <span>${type}</span></div>
+    </div>
+  `;
+}
+
+/* Swapping dispBody's innerHTML abruptly (grid <-> song list <-> favorites)
+   was the source of the visible "flash": the browser paints one frame of
+   empty/half-built markup before the new content's images and layout
+   settle. Routing every swap through this helper fades the panel out,
+   swaps the markup while it's invisible, then fades it back in — so the
+   user only ever sees a soft cross-dissolve, never a bare flash. */
+function setDispBody(html, afterSwap){
+  const body = document.getElementById('dispBody');
+  body.style.opacity = '0';
+  setTimeout(()=>{
+    body.innerHTML = html;
+    if(afterSwap) afterSwap();
+    requestAnimationFrame(()=>{ body.style.opacity = '1'; });
+  }, 160);
+}
+
+/* ===== Symphonies: artist -> albums -> songs browsing inside the left display ===== */
+let dispArtist = null;   // currently browsed artist title
+let dispAlbum = null;    // currently browsed album title (within dispArtist)
+
+function albumGridHTML(artist){
+  let cells = artist.albums.map(al => {
+    const favKeyStr = 'album|' + artist.title + '::' + al.title;
+    const fav = favorites.has(favKeyStr);
+    return `
+    <div class="album-cell" data-album="${al.title.replace(/"/g,'&quot;')}">
+      <div class="album-cell-art" style="background:${albumCoverFor(artist, al)}"></div>
+      <button class="item-fav-star album-fav-star ${fav?'active':''}" data-fav-key="${favKeyStr.replace(/"/g,'&quot;')}" aria-label="Save album to favorites">${STAR_SVG}</button>
+      <div class="album-cell-label">
+        <h4>${al.title}</h4>
+        <p>${al.year} · ${al.tech}</p>
+      </div>
+    </div>
+  `;
+  }).join('');
+  const artistArt = artist.cover ? `url('${PATHS.images}${artist.cover}')` : 'linear-gradient(135deg,#e6e6ea,#cfcfd4)';
+  return `
+    <div class="artist-browse-head">
+      <div class="artist-browse-art" style="background:${artistArt}"></div>
+      <div class="artist-browse-text">
+        <h3>${artist.title}</h3>
+        <p>${artist.short||''}</p>
+      </div>
+    </div>
+    <div class="album-grid">${cells}</div>
+  `;
+}
+
+function songListHTML(artist, album){
+  let rows = album.songs.map((s, i) => {
+    const favKeyStr = songFavKey(artist.title, album.title, s.title);
+    const fav = favorites.has(favKeyStr);
+    return `
+    <div class="song-row" data-song-idx="${i}">
+      <span class="song-row-num">${i+1}</span>
+      <div class="song-row-text">
+        <h4>${s.title}</h4>
+        <p>${formatTime(s.duration)}</p>
+      </div>
+      <button class="item-fav-star song-fav-star ${fav?'active':''}" data-fav-key="${favKeyStr.replace(/"/g,'&quot;')}" aria-label="Save song to favorites">${STAR_SVG}</button>
+      <span class="song-row-play">▶</span>
+    </div>
+  `;
+  }).join('');
+  return `
+    <div class="album-detail-head">
+      <div class="album-detail-art" style="background:${albumCoverFor(artist, album)}"></div>
+      <div class="album-detail-text">
+        <h3>${album.title}</h3>
+        <p>${artist.title} · ${album.year}</p>
+      </div>
+    </div>
+    <div class="song-list">${rows}</div>
+  `;
+}
+
+function renderArtistBrowse(artistTitle){
+  dispArtist = artistTitle;
+  dispAlbum = null;
+  const artist = findArtist(artistTitle);
+  if(!artist) return;
+  document.getElementById('dispTitle').textContent = artist.title;
+  const dispSub = document.getElementById('dispSubtitle');
+  dispSub.textContent = 'Select an album';
+  dispSub.style.display = 'block';
+  document.getElementById('dispBackArrow').style.display = 'none';
+  setDispBody(albumGridHTML(artist), wireAlbumCells);
+}
+
+function renderAlbumBrowse(artistTitle, albumTitle){
+  dispArtist = artistTitle;
+  dispAlbum = albumTitle;
+  const artist = findArtist(artistTitle);
+  const album = findAlbum(artistTitle, albumTitle);
+  if(!artist || !album) return;
+  document.getElementById('dispTitle').textContent = album.title;
+  const dispSub = document.getElementById('dispSubtitle');
+  dispSub.textContent = artist.title + ' · ' + album.year;
+  dispSub.style.display = 'block';
+  document.getElementById('dispBackArrow').style.display = 'flex';
+  setDispBody(songListHTML(artist, album), ()=>wireSongRows(artist, album));
+}
+
+function wireAlbumCells(){
+  document.querySelectorAll('#dispBody .album-cell').forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      renderAlbumBrowse(dispArtist, cell.dataset.album);
+    });
+    const star = cell.querySelector('.album-fav-star');
+    star.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const key = star.dataset.favKey;
+      if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+      star.classList.toggle('active', favorites.has(key));
+      if(showingFavorites) renderFavoritesView();
+    });
+  });
+}
+
+function wireSongRows(artist, album){
+  document.querySelectorAll('#dispBody .song-row').forEach(row=>{
+    row.addEventListener('click', (e)=>{
+      if(e.target.closest('.song-fav-star')) return;
+      const idx = Number(row.dataset.songIdx);
+      playbackContext = { mode:'album', artistTitle: artist.title, albumTitle: album.title };
+      loadIndexPreservingState(idx, true);
+      document.querySelectorAll('#dispBody .song-row').forEach(r=>r.classList.remove('active'));
+      row.classList.add('active');
+    });
+    const star = row.querySelector('.song-fav-star');
+    star.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const key = star.dataset.favKey;
+      if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+      star.classList.toggle('active', favorites.has(key));
+      updateAudioFavStar();
+      if(showingFavorites) renderFavoritesView();
+    });
+  });
+}
+
+document.getElementById('dispBackArrow').addEventListener('click', ()=>{
+  if(dispAlbum){
+    renderArtistBrowse(dispArtist);
+    return;
+  }
+  if(document.body.classList.contains('is-mobile')){
+    if(showingFavorites){
+      exitFavoritesView();
+      document.getElementById('dispTitle').textContent = 'Select an item from the list';
+      document.getElementById('dispSubtitle').style.display = 'none';
+      setDispBody('');
+    }
+    goToStep(activeCat ? 2 : 1);
+  }
+});
+
+function selectItem(item, el){
+  document.querySelectorAll('.list-item').forEach(e=>e.classList.remove('active'));
+  if(el) el.classList.add('active');
+
+  const dispTitle = document.getElementById('dispTitle');
+  const dispSub = document.getElementById('dispSubtitle');
+  document.getElementById('dispBackArrow').style.display = 'none';
+
+  if(currentCat === 'bible'){
+    dispTitle.textContent = item.book;
+    dispSub.textContent = item.chapterLabel;
+    dispSub.style.display = 'block';
+    const key = pdfKeyFor('bible', item.title, item.file);
+    setDispBody(pdfViewerHTML(key, false), ()=>initPdfViewer(key, 'bible', item));
+  } else if(currentCat === 'books'){
+    dispTitle.textContent = item.title;
+    dispSub.textContent = item.author;
+    dispSub.style.display = 'block';
+    const key = pdfKeyFor('books', item.title, item.file);
+    setDispBody(pdfViewerHTML(key, true, item.tech, item.year), ()=>initPdfViewer(key, 'books', item));
+  } else if(currentCat === 'images'){
+    dispTitle.textContent = item.title;
+    dispSub.textContent = item.artist;
+    dispSub.style.display = 'block';
+    setDispBody(mediaDisplayHTML(thumbFor('images', item), item.year, item.tech));
+  } else if(currentCat === 'symphonies'){
+    document.getElementById('favToggleBtn').classList.remove('active');
+    document.getElementById('mobileFavBtn').classList.remove('active');
+    showingFavorites = false;
+    renderArtistBrowse(item.title);
+  }
+
+  if(document.body.classList.contains('is-mobile')) goToStep(3);
+}
+
+function selectCategory(cat){
+  currentCat = cat;
+  activeCat = cat;
+  searchTerm = "";
+  document.getElementById('searchInput').value = "";
+  document.querySelectorAll('.content-cell').forEach(c=>c.classList.toggle('active', c.dataset.cat===cat));
+  document.getElementById('rotLabel').textContent = cat;
+  document.getElementById('rotLabel').classList.add('colorized');
+  document.getElementById('catLabel').textContent = "Content List";
+
+  setTitleColorized(true);
+  document.getElementById('catLabel').classList.add('colorized');
+
+  // Images entries arrive asynchronously via loadImagesManifest(). If the
+  // fetch hasn't resolved yet, renderList('images') below still runs (it
+  // will just show "No results found." against whatever DATA.images is
+  // right now) and loadImagesManifest()'s own .finally() re-renders the
+  // list once the manifest actually lands, as long the Images category
+  // is still the active one at that point.
+  if(cat === 'images') loadImagesManifest();
+
+  renderList(cat);
+  switchBackground(cat);
+
+  if(document.body.classList.contains('is-mobile')) goToStep(2);
+}
+
+document.querySelectorAll('.content-cell').forEach(cell=>{
+  cell.addEventListener('click', ()=> selectCategory(cell.dataset.cat));
+});
+
+let searchDebounce = null;
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  const val = e.target.value;
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(()=>{
+    searchTerm = val;
+    renderList(currentCat);
+  }, 180);
+});
+
+document.getElementById('backArrow').addEventListener('click', ()=>{
+  if(document.body.classList.contains('is-mobile')){
+    goToStep(mobileStep > 2 ? 2 : 1);
+    return;
+  }
+  searchTerm = "";
+  document.getElementById('searchInput').value = "";
+  renderList(currentCat);
+});
+
+function initContent(){
+  currentCat = 'bible';
+  document.getElementById('rotLabel').textContent = 'bible';
+  renderList('bible');
+}
+initContent();
+
+/* ============ FAVORITES VIEW (left panel) ============ */
+const favToggleBtn = document.getElementById('favToggleBtn');
+const mobileFavBtn = document.getElementById('mobileFavBtn');
+
+function toggleFavoritesView(){
+  showingFavorites = !showingFavorites;
+  favToggleBtn.classList.toggle('active', showingFavorites);
+  mobileFavBtn.classList.toggle('active', showingFavorites);
+  if(showingFavorites){
+    renderFavoritesView();
+    if(document.body.classList.contains('is-mobile')) goToStep(3);
+  }
+  else {
+    document.getElementById('dispTitle').textContent = 'Select an item from the list';
+    document.getElementById('dispSubtitle').style.display = 'none';
+    document.getElementById('dispBackArrow').style.display = 'none';
+    setDispBody('');
+    if(document.body.classList.contains('is-mobile')) goToStep(activeCat ? 2 : 1);
+  }
+}
+favToggleBtn.addEventListener('click', toggleFavoritesView);
+mobileFavBtn.addEventListener('click', toggleFavoritesView);
+
+function exitFavoritesView(){
+  showingFavorites = false;
+  favToggleBtn.classList.remove('active');
+  mobileFavBtn.classList.remove('active');
+}
+
+function renderFavoritesView(){
+  document.getElementById('dispTitle').textContent = 'Favorites';
+  document.getElementById('dispSubtitle').style.display = 'none';
+  document.getElementById('dispBackArrow').style.display = 'none';
+  if(favorites.size === 0){
+    setDispBody(`<div class="favorites-empty">No favorites yet.<br>Tap the star on any item, album, or song to save it here.</div>`);
+    return;
+  }
+  let html = '<div class="favorites-list">';
+  favorites.forEach(key=>{
+    const idx = key.indexOf('|');
+    const cat = key.slice(0, idx);
+    const rest = key.slice(idx+1);
+
+    if(cat === 'song'){
+      const [artistTitle, albumTitle, songTitle] = rest.split('::');
+      const artist = findArtist(artistTitle);
+      const album = findAlbum(artistTitle, albumTitle);
+      const song = album && album.songs.find(s=>s.title===songTitle);
+      if(!artist || !album || !song) return;
+      html += `
+        <div class="list-item fav-view-item" data-kind="song" data-artist="${artistTitle.replace(/"/g,'&quot;')}" data-album="${albumTitle.replace(/"/g,'&quot;')}" data-song="${songTitle.replace(/"/g,'&quot;')}">
+          <div class="list-item-thumb" style="background:${albumCoverFor(artist, album)}"></div>
+          <div class="list-item-text">
+            <h4>${song.title}</h4>
+            <p>${artistTitle} · ${albumTitle}</p>
+            <span class="fav-cat-tag">song ▸</span>
+          </div>
+        </div>`;
+    } else if(cat === 'album'){
+      const [artistTitle, albumTitle] = rest.split('::');
+      const artist = findArtist(artistTitle);
+      const album = findAlbum(artistTitle, albumTitle);
+      if(!artist || !album) return;
+      html += `
+        <div class="list-item fav-view-item" data-kind="album" data-artist="${artistTitle.replace(/"/g,'&quot;')}" data-album="${albumTitle.replace(/"/g,'&quot;')}">
+          <div class="list-item-thumb" style="background:${albumCoverFor(artist, album)}"></div>
+          <div class="list-item-text">
+            <h4>${album.title}</h4>
+            <p>${artistTitle} · ${album.year}</p>
+            <span class="fav-cat-tag">album ▸</span>
+          </div>
+        </div>`;
+    } else {
+      const item = (DATA[cat] || []).find(it => it.title === rest);
+      if(!item) return;
+      html += `
+        <div class="list-item fav-view-item" data-kind="content" data-cat="${cat}" data-title="${rest.replace(/"/g,'&quot;')}">
+          <div class="list-item-thumb" style="background:${thumbFor(cat,item)}"></div>
+          <div class="list-item-text">
+            <h4>${item.title}</h4>
+            <p>${item.short||''}</p>
+            <span class="fav-cat-tag">${cat} ▸</span>
+          </div>
+        </div>`;
+    }
+  });
+  html += '</div>';
+  setDispBody(html, wireFavoritesView);
+}
+
+function wireFavoritesView(){
+  document.querySelectorAll('#dispBody .fav-view-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const kind = el.dataset.kind;
+      exitFavoritesView();
+      if(kind === 'song'){
+        const artistTitle = el.dataset.artist, albumTitle = el.dataset.album, songTitle = el.dataset.song;
+        const album = findAlbum(artistTitle, albumTitle);
+        const idx = album ? album.songs.findIndex(s=>s.title===songTitle) : -1;
+        currentCat = 'symphonies';
+        playbackContext = { mode:'favSongs' };
+        selectCategory('symphonies');
+        renderAlbumBrowse(artistTitle, albumTitle);
+        if(idx > -1){
+          const queue = currentQueue();
+          const qIdx = queue.findIndex(q=>q.artistTitle===artistTitle && q.albumTitle===albumTitle && q.title===songTitle);
+          loadIndexPreservingState(qIdx > -1 ? qIdx : 0, true);
+        }
+      } else if(kind === 'album'){
+        const artistTitle = el.dataset.artist, albumTitle = el.dataset.album;
+        currentCat = 'symphonies';
+        selectCategory('symphonies');
+        playbackContext = { mode:'favAlbum', artistTitle, albumTitle };
+        renderAlbumBrowse(artistTitle, albumTitle);
+      } else {
+        const cat = el.dataset.cat, title = el.dataset.title;
+        const item = (DATA[cat] || []).find(it => it.title === title);
+        selectCategory(cat);
+        if(item) selectItem(item, null);
+        setTimeout(()=>{
+          document.querySelectorAll('#listItems .list-item').forEach(li=>{
+            const h4 = li.querySelector('h4');
+            if(h4 && h4.textContent === title) li.classList.add('active');
+          });
+        }, 30);
+      }
+    });
+  });
+}
+
+/* ============ AUDIO PLAYER ============
+   playbackContext describes what queue prev/next operate over:
+   - { mode:'album', artistTitle, albumTitle } -> songs of that album, no wrap at edges
+   - { mode:'favAlbum', artistTitle, albumTitle } -> same album, but only reachable
+     via a favorited album; edges still stop (no wrap)
+   - { mode:'favSongs' } -> flat list of individually-favorited songs, no wrap
+*/
+let playbackContext = { mode:'album', artistTitle: null, albumTitle: null };
+let audioIndex = 0, audioPlaying = false;
+let trackLoaded = false; // true only once a real track has been loaded into the player
+const audioEl = new Audio();
+audioEl.preload = 'metadata';
+
+function formatTime(s){
+  s = Math.max(0, Math.floor(s||0));
+  const m = Math.floor(s/60);
+  const sec = Math.floor(s%60);
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+/* Resolve the current playback queue (array of {title, duration, artistTitle, albumTitle, cover, src}) from playbackContext */
+function currentQueue(){
+  if(playbackContext.mode === 'favSongs'){
+    const out = [];
+    favorites.forEach(key=>{
+      const idx = key.indexOf('|');
+      const cat = key.slice(0, idx);
+      if(cat !== 'song') return;
+      const rest = key.slice(idx+1);
+      const [artistTitle, albumTitle, songTitle] = rest.split('::');
+      const artist = findArtist(artistTitle);
+      const album = findAlbum(artistTitle, albumTitle);
+      if(!artist || !album) return;
+      const song = album.songs.find(s=>s.title===songTitle);
+      if(!song) return;
+      out.push({ title: song.title, duration: song.duration, artistTitle, albumTitle, cover: albumCoverFor(artist, album), src: songSrcFor(artist, album, song) });
+    });
+    return out;
+  }
+  // album or favAlbum mode: songs of the one album
+  const artist = findArtist(playbackContext.artistTitle);
+  const album = findAlbum(playbackContext.artistTitle, playbackContext.albumTitle);
+  if(!artist || !album) return [];
+  return album.songs.map(s => ({ title: s.title, duration: s.duration, artistTitle: artist.title, albumTitle: album.title, cover: albumCoverFor(artist, album), src: songSrcFor(artist, album, s) }));
+}
+
+function songFavKey(artistTitle, albumTitle, songTitle){
+  return 'song|' + artistTitle + '::' + albumTitle + '::' + songTitle;
+}
+
+function loadTrack(i, autoplay){
+  const queue = currentQueue();
+  if(queue.length === 0) return;
+  trackLoaded = true;
+  audioIndex = Math.max(0, Math.min(i, queue.length - 1));
+  const tr = queue[audioIndex];
+  document.getElementById('audioArt').style.background = tr.cover || 'linear-gradient(135deg,#e8e8ea,#c8c8cc)';
+  document.getElementById('audioTitle').textContent = tr.title;
+  document.getElementById('audioArtist').textContent = tr.artistTitle + ' · ' + tr.albumTitle;
+  const seek = document.getElementById('audioSeek');
+  seek.max = tr.duration || 0;
+  seek.value = 0;
+  document.getElementById('audioDurTime').textContent = formatTime(tr.duration);
+  document.getElementById('audioCurTime').textContent = '0:00';
+  updateAudioFavStar();
+  updatePrevNextEnabled();
+  audioEl.src = tr.src;
+  if(autoplay){
+    audioEl.play().catch(()=>{ audioPlaying = false; audioPlayIcon.innerHTML = PLAY_PATH; });
+    audioPlaying = true;
+    audioPlayIcon.innerHTML = PAUSE_PATH;
+  }
+}
+
+function updatePrevNextEnabled(){
+  const queue = currentQueue();
+  document.getElementById('audioPrev').disabled = audioIndex <= 0;
+  document.getElementById('audioNext').disabled = audioIndex >= queue.length - 1;
+}
+
+function updateAudioFavStar(){
+  const queue = currentQueue();
+  const tr = queue[audioIndex];
+  if(!tr) return;
+  const btn = document.getElementById('audioFavStar');
+  btn.dataset.songKey = songFavKey(tr.artistTitle, tr.albumTitle, tr.title);
+  btn.classList.toggle('active', favorites.has(btn.dataset.songKey));
+}
+
+document.getElementById('audioFavStar').addEventListener('click', ()=>{
+  const key = document.getElementById('audioFavStar').dataset.songKey;
+  if(!key) return;
+  if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+  updateAudioFavStar();
+  if(showingFavorites) renderFavoritesView();
+});
+
+const audioPlayBtn = document.getElementById('audioPlay');
+const audioPlayIcon = document.getElementById('audioPlayIcon');
+const PLAY_PATH = '<path d="M8 5v14l11-7z"/>';
+const PAUSE_PATH = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+/* Real playback: audioEl fires these events itself, so there's no manual
+   setInterval ticking a fake clock (which used to drift from real audio
+   and kept a JS timer running even while paused/tab hidden). */
+audioEl.addEventListener('timeupdate', ()=>{
+  document.getElementById('audioSeek').value = audioEl.currentTime;
+  document.getElementById('audioCurTime').textContent = formatTime(audioEl.currentTime);
+});
+audioEl.addEventListener('loadedmetadata', ()=>{
+  if(isFinite(audioEl.duration) && audioEl.duration > 0){
+    document.getElementById('audioSeek').max = audioEl.duration;
+    document.getElementById('audioDurTime').textContent = formatTime(audioEl.duration);
+  }
+});
+audioEl.addEventListener('ended', ()=>{
+  const queue = currentQueue();
+  if(audioIndex < queue.length - 1) changeTrack(1);
+  else { audioPlaying = false; audioPlayIcon.innerHTML = PLAY_PATH; }
+});
+audioEl.addEventListener('error', ()=>{
+  audioPlaying = false;
+  audioPlayIcon.innerHTML = PLAY_PATH;
+});
+
+audioPlayBtn.addEventListener('click', ()=>{
+  if(currentQueue().length === 0) return;
+  if(!trackLoaded){
+    loadIndexPreservingState(0, true);
+    return;
+  }
+  audioPlaying = !audioPlaying;
+  audioPlayIcon.innerHTML = audioPlaying ? PAUSE_PATH : PLAY_PATH;
+  if(audioPlaying) audioEl.play().catch(()=>{ audioPlaying = false; audioPlayIcon.innerHTML = PLAY_PATH; });
+  else audioEl.pause();
+});
+
+function loadIndexPreservingState(i, forcePlay){
+  const wasPlaying = audioPlaying || forcePlay;
+  loadTrack(i, wasPlaying);
+  if(!wasPlaying){
+    audioPlaying = false;
+    audioPlayIcon.innerHTML = PLAY_PATH;
+  }
+}
+
+function changeTrack(delta){
+  if(!trackLoaded) return;
+  const queue = currentQueue();
+  const next = audioIndex + delta;
+  if(next < 0 || next > queue.length - 1) return; // no wrap: stop at edges
+  loadIndexPreservingState(next, audioPlaying);
+}
+
+document.getElementById('audioPrev').addEventListener('click', ()=> changeTrack(-1));
+document.getElementById('audioNext').addEventListener('click', ()=> changeTrack(1));
+
+document.getElementById('audioSeek').addEventListener('input', (e)=>{
+  const t = parseInt(e.target.value, 10);
+  audioEl.currentTime = t;
+  document.getElementById('audioCurTime').textContent = formatTime(t);
+});
+
+document.getElementById('audioPrev').disabled = true;
+document.getElementById('audioNext').disabled = true;
+
+/* clocks */
+function tick(){
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const str = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  document.getElementById('clockOut').textContent = str;
+  document.getElementById('miniClock').textContent = str;
+}
+tick();
+setInterval(tick, 1000);
+
+/* ============ MOBILE STEP FLOW ============
+   Step 1: Content grid only (choose a section)
+   Step 2: Content list for the chosen section
+   Step 3: The big display (left-col) showing the chosen item
+   Uses a media query match to decide when "mobile mode" is active;
+   in mobile mode we toggle a body class and show/hide the three blocks
+   instead of relying on the desktop side-by-side layout.
+*/
+const MOBILE_BREAKPOINT = 760;
+let mobileStep = 1;
+const mq = window.matchMedia(`(max-width:${MOBILE_BREAKPOINT}px)`);
+
+function applyMobileState(){
+  const isMobile = mq.matches;
+  document.body.classList.toggle('is-mobile', isMobile);
+  if(isMobile){
+    goToStep(mobileStep || 1);
+  } else {
+    document.body.removeAttribute('data-mobile-step');
+  }
+}
+
+function goToStep(step){
+  mobileStep = step;
+  document.body.setAttribute('data-mobile-step', String(step));
+  // Two dot-rows exist in the DOM: the real one inside .right-col (used on
+  // steps 1-2) and the duplicate inside .mobile-step3-title (used on step
+  // 3, see the CSS/markup notes above). Both need to stay in sync, so
+  // update every ".mobile-step-dots" instance rather than a single #id.
+  document.querySelectorAll('.mobile-step-dots span').forEach(dot=>{
+    dot.classList.toggle('on', Number(dot.dataset.step) === step);
+  });
+}
+
+mq.addEventListener ? mq.addEventListener('change', applyMobileState) : mq.addListener(applyMobileState);
+applyMobileState();
+</script>
+
+</body>
+</html>
