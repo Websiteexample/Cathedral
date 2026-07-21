@@ -192,6 +192,44 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 /* ===== media (images / symphonies) detail layout ===== */
 .media-image{width:100%;max-width:420px;height:240px;margin:4px auto 14px auto;box-shadow:0 14px 34px var(--shadow-1);display:block;border-radius:8px;background-size:cover;background-position:center;}
 
+.media-image-wrap{position:relative;max-width:420px;margin:0 auto;}
+.media-image-wrap .media-image{margin:4px auto 14px auto;}
+.img-focus-btn{
+  position:absolute;bottom:24px;right:10px;z-index:6;
+  width:auto;height:auto;padding:7px 14px 7px 11px;border-radius:20px;
+  display:flex;align-items:center;gap:6px;
+  background:rgba(17,17,20,0.55);backdrop-filter:blur(6px);
+  box-shadow:0 6px 16px var(--shadow-2), inset 0 0 0 1px var(--glass-highlight);
+  color:var(--hilite-text);font-family:"Trebuchet MS",sans-serif;
+  font-size:11px;letter-spacing:0.4px;
+}
+.img-focus-btn:hover{opacity:0.85;}
+.img-focus-btn svg{flex-shrink:0;}
+
+/* ===== IMAGE FOCUS MODE =====
+   While active, the chosen gallery image occupies the fullscreen
+   background layer (via switchBackgroundToUrl — same crossfade as every
+   other background swap). The stage itself just dims slightly so the
+   photo reads as the clear subject without fully hiding the UI, which
+   keeps every existing control (audio player, nav) reachable rather than
+   demanding a separate teardown/restore path for a true fullscreen
+   takeover. */
+body.img-focus-mode .stage{ opacity:0.16; transition:opacity .4s ease; pointer-events:none; }
+#waveStage{ transition:filter .4s ease; }
+
+.focus-hint{
+  position:fixed;left:50%;bottom:36px;transform:translate(-50%,10px);
+  z-index:50;padding:10px 18px;border-radius:20px;
+  background:rgba(17,17,20,0.6);backdrop-filter:blur(8px);
+  color:var(--hilite-text);font-family:"Trebuchet MS",sans-serif;
+  font-size:12px;letter-spacing:0.3px;text-align:center;
+  box-shadow:0 8px 22px var(--shadow-1), inset 0 0 0 1px var(--glass-highlight);
+  opacity:0;pointer-events:none;
+  transition:opacity .35s ease, transform .35s ease;
+}
+.focus-hint.show{ opacity:1; transform:translate(-50%,0); }
+
+
 /* ===== PDF viewer (bible / books) ===== */
 .pdf-viewport{
   position:relative;width:100%;min-height:440px;
@@ -462,10 +500,31 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
     align-items:stretch;
     gap:16px;
     width:100%;
-    max-width:440px;
+    max-width:600px;
+    padding:0 14px;
   }
   .left-col, .right-col{ width:100%; min-height:0; }
   .left-frame{ padding:0; }
+
+  /* The desktop layout was designed at 960px and simply reflowed here,
+     which left every font-size/icon-size still tuned for that scale.
+     clamp() lets each of these grow with the viewport (between a floor
+     that stays legible on a small phone and the original desktop value
+     as a ceiling) instead of staying pinned to the small end always. */
+  body.is-mobile .display-title-bar h2{ font-size:clamp(17px, 4.5vw, 20px); }
+  body.is-mobile .disp-subtitle{ font-size:clamp(11px, 3vw, 12px); }
+  body.is-mobile .display-desc{ font-size:clamp(13px, 3.4vw, 14px); line-height:1.75; }
+  body.is-mobile .display-meta{ font-size:clamp(11px, 2.8vw, 12px); }
+  body.is-mobile .album-cell-label h4{ font-size:clamp(12.5px, 3.2vw, 13.5px); }
+  body.is-mobile .album-cell-label p{ font-size:clamp(10.5px, 2.7vw, 11px); }
+  body.is-mobile .song-row-text h4{ font-size:clamp(12.5px, 3.2vw, 13.5px); }
+  body.is-mobile .song-row-text p{ font-size:clamp(10.5px, 2.7vw, 11px); }
+  body.is-mobile .list-item-text h4{ font-size:clamp(12.5px, 3.2vw, 13.5px); }
+  body.is-mobile .list-item-text p{ font-size:clamp(10.5px, 2.7vw, 11px); }
+  body.is-mobile .t-online, body.is-mobile .t-cathedral{ font-size:clamp(22px, 6vw, 26px); }
+  body.is-mobile .section-label{ font-size:clamp(9.5px, 2.4vw, 10.5px); }
+  body.is-mobile .content-cell-label{ font-size:clamp(10.5px, 2.6vw, 11.5px); }
+  body.is-mobile .list-panel-titlebar .cat-name{ font-size:clamp(9.5px, 2.4vw, 10.5px); }
 
   body.is-mobile .left-col{ display:none; }
   body.is-mobile .content-grid{ display:none; }
@@ -552,8 +611,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
   body.is-mobile .song-row .song-fav-star{ right:16px; }
   body.is-mobile .song-row{ padding-right:46px; }
 
-  body.is-mobile .list-panel-outer{ height:400px; }
-  body.is-mobile .left-col{ min-height:520px; }
+  body.is-mobile .list-panel-outer{ height:min(58vh, 460px); }
+  body.is-mobile .left-col{ min-height:min(64vh, 560px); }
+  body.is-mobile .list-item-thumb{ width:52px; height:52px; }
+  body.is-mobile .album-cell-art{ height:120px; }
+  body.is-mobile .media-image{ max-width:100%; height:clamp(200px, 48vw, 300px); }
 
   /* iOS Safari zooms the whole page in when a focused input's font-size
      is under 16px — bumping just this input avoids that jarring zoom
@@ -633,6 +695,8 @@ input:focus-visible{
   <div id="waveLayerA" class="wave-canvas-layer"></div>
   <div id="waveLayerB" class="wave-canvas-layer"></div>
 </div>
+
+<div class="focus-hint" id="focusHint" aria-hidden="true">Double-tap to exit</div>
 
 <div class="bg-wrap">
 <div class="stage">
@@ -815,14 +879,20 @@ let activeBgLayer = 'A';
 bgLayers.A.el.style.backgroundImage = `url('${BG_IMAGES.default}')`;
 
 let bgTransitionTimer = null;
-function switchBackground(cat){
+
+/* Core crossfade, driven by a raw image URL. switchBackground(cat) below
+   is just this plus a category->URL lookup — pulling the URL resolution
+   out means any arbitrary image (e.g. a gallery photo put into "focus
+   mode") can reuse the exact same transition without faking a fake
+   category key for it. */
+function switchBackgroundToUrl(url, key){
   const current = bgLayers[activeBgLayer];
-  if(current.cat === cat) return;
+  if(current.cat === key) return;
   const targetKey = activeBgLayer === 'A' ? 'B' : 'A';
   const target = bgLayers[targetKey];
 
-  target.cat = cat;
-  target.el.style.backgroundImage = `url('${BG_IMAGES[cat] || BG_IMAGES.default}')`;
+  target.cat = key;
+  target.el.style.backgroundImage = `url('${url}')`;
 
   // Flip which layer is "active" immediately rather than waiting for the
   // fade to finish. If this stayed pending until a setTimeout (as before),
@@ -851,11 +921,85 @@ function switchBackground(cat){
   }, 1150);
 }
 
+function switchBackground(cat){
+  switchBackgroundToUrl(BG_IMAGES[cat] || BG_IMAGES.default, cat);
+}
+
+/* ============ IMAGE FOCUS MODE ============
+   Lets a gallery image take over the fullscreen background layer (the
+   same dual-layer crossfade everything else uses), with a small hint
+   telling the person how to get back out. Nothing about the crossfade
+   itself changes — this just points it at a one-off image URL instead
+   of a category key, and remembers what to restore on exit. */
+let focusModeActive = false;
+let focusModeReturnCat = null; // category background to restore on exit
+let focusModeHintTimer = null;
+
+function enterImageFocusMode(url){
+  if(!url || focusModeActive) return;
+  focusModeActive = true;
+  focusModeReturnCat = activeCat || 'default';
+  switchBackgroundToUrl(url, '__focus__:' + url);
+  document.body.classList.add('img-focus-mode');
+  showFocusHint();
+}
+
+function exitImageFocusMode(){
+  if(!focusModeActive) return;
+  focusModeActive = false;
+  document.body.classList.remove('img-focus-mode');
+  hideFocusHint();
+  switchBackground(focusModeReturnCat);
+  focusModeReturnCat = null;
+}
+
+function showFocusHint(){
+  const hint = document.getElementById('focusHint');
+  if(!hint) return;
+  hint.classList.add('show');
+  clearTimeout(focusModeHintTimer);
+  // Hint fades on its own after a few seconds so it doesn't linger and
+  // block the view, but reappears any time the person taps once (see the
+  // tap handler below) in case they forgot how to get back out.
+  focusModeHintTimer = setTimeout(()=> hint.classList.remove('show'), 3200);
+}
+function hideFocusHint(){
+  const hint = document.getElementById('focusHint');
+  if(hint) hint.classList.remove('show');
+  clearTimeout(focusModeHintTimer);
+}
+
+/* Double-tap/double-click detection on the background layers themselves.
+   Using two consecutive pointerdown events within a short window rather
+   than the browser's native "dblclick" because dblclick doesn't fire
+   reliably for touch on all mobile browsers — pointerdown does. */
+let lastFocusTapTime = 0;
+function handleFocusModePointerDown(){
+  if(!focusModeActive) return;
+  const now = Date.now();
+  if(now - lastFocusTapTime < 350){
+    lastFocusTapTime = 0;
+    exitImageFocusMode();
+  } else {
+    lastFocusTapTime = now;
+    showFocusHint(); // single tap re-shows the reminder, doesn't exit
+  }
+}
+document.getElementById('waveStage').addEventListener('pointerdown', handleFocusModePointerDown);
+
+// Backing out of focus mode any other way the person might reasonably
+// expect to work: Escape key, or navigating away from the image entirely
+// (opening a different item, switching sections, going home).
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && focusModeActive) exitImageFocusMode();
+});
+
 /* Tapping/clicking the "OnlineCathedral" title acts as a home button:
    it clears the current section, drops the left display back to its
    empty state, and eases the background back to the default image
    using the same blur-pulse crossfade as switching sections. */
 function goHome(){
+  if(focusModeActive){ focusModeActive = false; document.body.classList.remove('img-focus-mode'); hideFocusHint(); }
   switchBackground('default');
   document.querySelectorAll('.content-cell').forEach(c=>c.classList.remove('active'));
   activeCat = null;
@@ -1096,7 +1240,7 @@ document.querySelectorAll('.content-cell').forEach(cell=>{
 
      content/bible/<file>.pdf            one PDF per chapter entry
      content/books/<file>.pdf            one PDF per book entry
-     imagese/<file>.jpg                  one image per gallery entry (see imagesjson manifest)
+     content/images/<file>.jpg           one image per gallery entry
      content/music/<Artist>/<Album>/<Song>.mp3
        - one folder per artist
        - inside it, one folder per album (album names must be unique —
@@ -1105,14 +1249,8 @@ document.querySelectorAll('.content-cell').forEach(cell=>{
        - inside each album folder, one audio file per song, plus an
          optional cover.jpg for the album artwork
 
-   IMAGES SECTION: instead of hand-editing DATA.images below, entries are
-   fetched at runtime from imagesjson (a flat JSON array living next to
-   this HTML, in the imagese/ folder), so the gallery can grow to
-   hundreds/thousands of entries without touching this file. See
-   loadImagesManifest() further down. Each manifest entry looks like:
-     { "title": "...", "artist": "...", "year": "...", "file": "...", "type": "Painting" }
-   The site maps "type" -> the same "tech" field used elsewhere for the
-   TYPE: row in the display, and treats "artist" as the item's byline.
+   Each category below starts with a single BLANK entry as a template —
+   duplicate it and fill in the fields for every real item you add.
    ------------------------------------------------------------------ */
 
 const PATHS = {
@@ -1141,9 +1279,10 @@ const DATA = {
     { title: "", author: "", year: "", file: "", short: "", tech: "" }
   ],
 
-  // Images: populated at runtime from imagesjson via loadImagesManifest().
-  // Starts empty (not a blank template entry) since the list view already
-  // handles an empty array by showing "No results found."
+  // Images: populated at runtime from the imagesjson manifest via
+  // loadImagesManifest() below. Starts empty (not a blank template entry)
+  // since the list view already handles an empty array by showing
+  // "No results found." while the manifest is still loading.
   images: [],
 
   // Symphonies: Artist -> Albums -> Songs. Duplicate the artist block for
@@ -1169,60 +1308,21 @@ const DATA = {
   ]
 };
 
-/* ===== Images manifest loader =====
-   Fetches imagesjson (array of {title, artist, year, file, type}) from
-   the same folder as the image files themselves (PATHS.images, i.e.
-   "imagese/") and populates DATA.images so the rest of the site's
-   existing rendering code (renderList, selectItem, thumbFor, favorites,
-   search, etc.) works completely unmodified — it just sees a normal
-   DATA.images array once this resolves.
-   "type" from the manifest is mapped to "tech" because that's the field
-   name selectItem()/mediaDisplayHTML() already read for the TYPE: row. */
-let imagesManifestLoaded = false;
-let imagesManifestLoading = null;
-
-async function loadImagesManifest(){
-  if(imagesManifestLoaded) return;
-  if(imagesManifestLoading) return imagesManifestLoading;
-  imagesManifestLoading = (async () => {
-    try{
-      const res = await fetch(PATHS.images + 'imagesjson');
-      if(!res.ok) throw new Error('manifest fetch failed: ' + res.status);
-      const raw = await res.json();
-      DATA.images = raw.map(entry => ({
-        title: entry.title || '',
-        artist: entry.artist || '',
-        year: entry.year || '',
-        file: entry.file || '',
-        short: entry.short || '',
-        tech: entry.type || entry.tech || ''
-      }));
-    } catch(err){
-      // No manifest yet (e.g. still being uploaded) — leave DATA.images
-      // empty; the list view already shows "No results found." gracefully.
-      console.warn('Could not load images manifest:', err);
-      DATA.images = [];
-    } finally {
-      imagesManifestLoaded = true;
-      // If the Images category is the one currently open when this
-      // resolves, refresh the list so the fetched entries actually appear
-      // instead of waiting for the next category click.
-      if(currentCat === 'images') renderList('images');
-    }
-  })();
-  return imagesManifestLoading;
-}
-// Kick the fetch off immediately (same "preload early" approach used for
-// the background images) so the manifest is very likely already resolved
-// by the time someone clicks into the Images category.
-loadImagesManifest();
-
 /* Resolve the display thumbnail for a bible/books/images entry: a real
    image if the folder has one, otherwise a neutral placeholder so the
    layout never breaks while content is still being filled in. */
 function thumbFor(cat, item){
   if(item.file || item.title) return `url('${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}')`;
   return 'linear-gradient(135deg,#e6e6ea,#cfcfd4)';
+}
+/* Same resolution as thumbFor, but returns the bare URL string instead of
+   a CSS background: value — needed anywhere the URL is handed to
+   something other than an inline style, like the fullscreen background
+   layer in "image focus mode". Returns null for the placeholder case
+   (no real image to focus on). */
+function rawImageUrlFor(cat, item){
+  if(item.file || item.title) return `${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}`;
+  return null;
 }
 function albumCoverFor(artist, album){
   const file = album.cover || 'cover.jpg';
@@ -1232,6 +1332,84 @@ function songSrcFor(artist, album, song){
   const file = song.file || (slugify(song.title)+'.mp3');
   return `${PATHS.music}${slugify(artist.title)}/${slugify(album.title)}/${file}`;
 }
+
+/* ===== Images manifest loader =====
+   Fetches the images manifest (a JSON array of
+   {title, artist, year, file, type}) from the imagese/ folder and
+   populates DATA.images so the rest of the site's existing rendering
+   code (renderList, selectItem, thumbFor, favorites, search) works
+   completely unmodified once this resolves.
+
+   Tries a few common filenames in order, since "what do I name this
+   file" is the single most likely point of failure for this feature —
+   the manifest can be named imagesjson, imagesjson.json, images.json,
+   or manifest.json and this will find it either way. The first one that
+   actually returns valid JSON wins.
+
+   "type" from the manifest is mapped to "tech" because that's the field
+   name selectItem()/mediaDisplayHTML() already read for the TYPE: row. */
+const IMAGES_MANIFEST_CANDIDATES = ['imagesjson', 'imagesjson.json', 'images.json', 'manifest.json'];
+let imagesManifestLoaded = false;
+let imagesManifestLoading = null;
+let imagesManifestError = null; // last error, surfaced in the UI if every candidate fails
+
+async function tryFetchManifest(url){
+  const res = await fetch(url, { cache: 'no-store' });
+  if(!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
+  const text = await res.text();
+  // Parse manually rather than res.json(): some static hosts (and git
+  // raw serving) return manifest files as text/plain or without a
+  // content-type at all, which makes some browsers' res.json() reject
+  // a perfectly valid JSON body. Parsing the text ourselves sidesteps that.
+  return JSON.parse(text);
+}
+
+async function loadImagesManifest(){
+  if(imagesManifestLoaded) return;
+  if(imagesManifestLoading) return imagesManifestLoading;
+  imagesManifestLoading = (async () => {
+    let raw = null;
+    let lastErr = null;
+    for(const name of IMAGES_MANIFEST_CANDIDATES){
+      try{
+        raw = await tryFetchManifest(PATHS.images + name);
+        lastErr = null;
+        break;
+      } catch(err){
+        lastErr = err;
+      }
+    }
+    if(raw && Array.isArray(raw)){
+      DATA.images = raw.map(entry => ({
+        title: entry.title || '',
+        artist: entry.artist || '',
+        year: entry.year || '',
+        file: entry.file || '',
+        short: entry.short || '',
+        tech: entry.type || entry.tech || ''
+      }));
+      imagesManifestError = null;
+    } else {
+      // No manifest found under any candidate name, or it wasn't a JSON
+      // array. Leave DATA.images empty; the list view shows a clear
+      // message (instead of a silent blank list) so this is easy to
+      // diagnose from the page itself, not just the console.
+      console.warn('Could not load images manifest:', lastErr);
+      imagesManifestError = lastErr ? lastErr.message : 'Manifest was not a JSON array';
+      DATA.images = [];
+    }
+    imagesManifestLoaded = true;
+    // If the Images category is the one currently open when this
+    // resolves, refresh the list so the fetched entries actually appear
+    // instead of waiting for the next category click.
+    if(currentCat === 'images') renderList('images');
+  })();
+  return imagesManifestLoading;
+}
+// Kick the fetch off immediately (same "preload early" approach used for
+// the background images) so the manifest is very likely already resolved
+// by the time someone clicks into the Images category.
+loadImagesManifest();
 
 /* Flat lookup helpers for the Symphonies artist/album/song tree */
 function symArtists(){ return DATA.symphonies; }
@@ -1257,13 +1435,38 @@ const STAR_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26L22 9.27l-5 4.
 let currentCat = "bible";
 let searchTerm = "";
 let showingFavorites = false;
-const favorites = new Set();
+/* Favorites persist across reloads via localStorage. Wrapped in try/catch
+   since some browsers (private/incognito mode, or storage disabled by
+   policy) throw on access rather than just failing silently — in that
+   case favorites still work for the session, they just won't survive
+   a reload, same as before this change. */
+const FAVORITES_STORAGE_KEY = 'oc_favorites_v1';
+function loadStoredFavorites(){
+  try{
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if(!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch(err){
+    console.warn('Could not load saved favorites:', err);
+    return new Set();
+  }
+}
+function persistFavorites(){
+  try{
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(favorites)));
+  } catch(err){
+    console.warn('Could not save favorites:', err);
+  }
+}
+const favorites = loadStoredFavorites();
 
 function favKey(cat,title){ return cat+'|'+title; }
 function isFav(cat,title){ return favorites.has(favKey(cat,title)); }
 function toggleFavorite(cat,title){
   const k = favKey(cat,title);
   if(favorites.has(k)) favorites.delete(k); else favorites.add(k);
+  persistFavorites();
   refreshFavStars();
   if(showingFavorites) renderFavoritesView();
 }
@@ -1326,7 +1529,18 @@ function renderList(cat){
   const wrap = document.getElementById('listItems');
   wrap.innerHTML = '';
   if(items.length === 0){
-    wrap.innerHTML = `<div style="color:var(--dim-text-2); font-size:11px; font-family:'Courier New',monospace; padding:10px; text-align:center;">No results found.</div>`;
+    // Images is the one category whose data arrives asynchronously from
+    // a manifest fetch, so an empty list here can mean three different
+    // things — show whichever message actually applies instead of a
+    // generic "No results found." in every case.
+    let msg = 'No results found.';
+    if(cat === 'images'){
+      if(!imagesManifestLoaded) msg = 'Loading images…';
+      else if(imagesManifestError) msg = `Could not load the images manifest.<br>(${imagesManifestError})`;
+      else if(searchTerm) msg = 'No results found.';
+      else msg = 'No images yet. Add an imagesjson file to the imagese/ folder.';
+    }
+    wrap.innerHTML = `<div style="color:var(--dim-text-2); font-size:11px; font-family:'Courier New',monospace; padding:10px; text-align:center; line-height:1.6;">${msg}</div>`;
     listRenderState = { cat, items: [], rendered: 0 };
     return;
   }
@@ -1536,9 +1750,17 @@ function initPdfViewer(key, cat, item){
   }
 }
 
-function mediaDisplayHTML(thumb, year, type){
+function mediaDisplayHTML(thumb, year, type, rawUrl){
+  const focusBtn = rawUrl ? `
+    <button class="img-focus-btn icon-btn" id="imgFocusBtn" aria-label="View as background">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 0-2 2h-3"/></svg>
+      <span>Focus</span>
+    </button>` : '';
   return `
-    <div class="media-image" style="background:${thumb}"></div>
+    <div class="media-image-wrap">
+      <div class="media-image" style="background:${thumb}"></div>
+      ${focusBtn}
+    </div>
     <div class="display-meta">
       <div>YEAR: <span>${year}</span></div>
       <div>TYPE: <span>${type}</span></div>
@@ -1659,6 +1881,7 @@ function wireAlbumCells(){
       e.stopPropagation();
       const key = star.dataset.favKey;
       if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+      persistFavorites();
       star.classList.toggle('active', favorites.has(key));
       if(showingFavorites) renderFavoritesView();
     });
@@ -1680,6 +1903,7 @@ function wireSongRows(artist, album){
       e.stopPropagation();
       const key = star.dataset.favKey;
       if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+      persistFavorites();
       star.classList.toggle('active', favorites.has(key));
       updateAudioFavStar();
       if(showingFavorites) renderFavoritesView();
@@ -1704,6 +1928,7 @@ document.getElementById('dispBackArrow').addEventListener('click', ()=>{
 });
 
 function selectItem(item, el){
+  if(focusModeActive) exitImageFocusMode();
   document.querySelectorAll('.list-item').forEach(e=>e.classList.remove('active'));
   if(el) el.classList.add('active');
 
@@ -1727,7 +1952,11 @@ function selectItem(item, el){
     dispTitle.textContent = item.title;
     dispSub.textContent = item.artist;
     dispSub.style.display = 'block';
-    setDispBody(mediaDisplayHTML(thumbFor('images', item), item.year, item.tech));
+    const rawUrl = rawImageUrlFor('images', item);
+    setDispBody(mediaDisplayHTML(thumbFor('images', item), item.year, item.tech, rawUrl), ()=>{
+      const btn = document.getElementById('imgFocusBtn');
+      if(btn) btn.addEventListener('click', ()=> enterImageFocusMode(rawUrl));
+    });
   } else if(currentCat === 'symphonies'){
     document.getElementById('favToggleBtn').classList.remove('active');
     document.getElementById('mobileFavBtn').classList.remove('active');
@@ -1739,6 +1968,7 @@ function selectItem(item, el){
 }
 
 function selectCategory(cat){
+  if(focusModeActive){ focusModeActive = false; document.body.classList.remove('img-focus-mode'); hideFocusHint(); }
   currentCat = cat;
   activeCat = cat;
   searchTerm = "";
@@ -1750,14 +1980,6 @@ function selectCategory(cat){
 
   setTitleColorized(true);
   document.getElementById('catLabel').classList.add('colorized');
-
-  // Images entries arrive asynchronously via loadImagesManifest(). If the
-  // fetch hasn't resolved yet, renderList('images') below still runs (it
-  // will just show "No results found." against whatever DATA.images is
-  // right now) and loadImagesManifest()'s own .finally() re-renders the
-  // list once the manifest actually lands, as long the Images category
-  // is still the active one at that point.
-  if(cat === 'images') loadImagesManifest();
 
   renderList(cat);
   switchBackground(cat);
@@ -2019,6 +2241,7 @@ document.getElementById('audioFavStar').addEventListener('click', ()=>{
   const key = document.getElementById('audioFavStar').dataset.songKey;
   if(!key) return;
   if(favorites.has(key)) favorites.delete(key); else favorites.add(key);
+      persistFavorites();
   updateAudioFavStar();
   if(showingFavorites) renderFavoritesView();
 });
