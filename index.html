@@ -190,7 +190,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .display-meta div{margin-bottom:4px;}
 
 /* ===== media (images / symphonies) detail layout ===== */
-.media-image{width:100%;max-width:420px;height:240px;margin:4px auto 14px auto;box-shadow:0 14px 34px var(--shadow-1);display:block;border-radius:8px;background-size:cover;background-position:center;}
+.media-image{width:100%;max-width:420px;height:240px;margin:4px auto 14px auto;box-shadow:0 14px 34px var(--shadow-1);display:block;border-radius:8px;background-size:contain;background-position:center;background-repeat:no-repeat;background-color:rgba(0,0,0,0.35);}
 
 .media-image-wrap{position:relative;max-width:420px;margin:0 auto;}
 .media-image-wrap .media-image{margin:4px auto 14px auto;}
@@ -222,6 +222,17 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
    stage-level CSS override here anymore; see the IMAGE FOCUS MODE
    script block for the actual behavior. */
 #waveStage{ transition:filter .4s ease; }
+
+/* Focus-mode background panning: a modest zoom (not a huge blow-up) so
+   there's extra image real-estate beyond the viewport to drag around in,
+   while still reading as "the same photo", not a wildly cropped one.
+   background-position is driven by JS (see IMAGE FOCUS PAN below) rather
+   than fixed here. */
+.wave-canvas-layer.pannable{
+  background-size:145% !important;
+  cursor:grab;
+}
+.wave-canvas-layer.pannable.panning{ cursor:grabbing; }
 
 .focus-hint{
   position:fixed;left:50%;top:22px;transform:translate(-50%,-10px);
@@ -428,7 +439,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
   contain-intrinsic-size:60px;
 }
 .list-item:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);}
-.list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:cover;background-position:center;border-radius:4px;position:relative;overflow:hidden;}
+.list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:contain;background-position:center;background-repeat:no-repeat;background-color:rgba(0,0,0,0.35);border-radius:4px;position:relative;overflow:hidden;}
 
 /* Shown while an image thumb's availability is still being probed —
    without this, a missing/slow image is just a static blank square with
@@ -745,7 +756,7 @@ input:focus-visible{
 
 <div class="focus-hint" id="focusHint" aria-hidden="true">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9V4.5M9 9H4.5M9 9L3 3M15 9V4.5M15 9h4.5M15 9l6-6M9 15v4.5M9 15H4.5M9 15l-6 6M15 15v4.5M15 15h4.5M15 15l6 6"/></svg>
-  <span>Double-tap anywhere to exit</span>
+  <span>Drag to explore &middot; Double-tap to exit</span>
 </div>
 
 <div class="bg-wrap">
@@ -997,10 +1008,82 @@ function switchBackground(cat){
 let focusModeActive = false;
 let focusModeHintTimer = null;
 
+/* ===== Focus-mode background panning =====
+   While a gallery image sits in the background (focus mode), the layer
+   is zoomed in slightly (see .pannable in CSS) so there's room to drag
+   around and reveal parts of the photo that a plain "fit to screen"
+   view would crop off. posX/posY are percentages (0-100) tracking
+   background-position, starting centered. */
+let panPosX = 50, panPosY = 50;
+let panDragging = false;
+let panStartX = 0, panStartY = 0;
+let panStartPosX = 50, panStartPosY = 50;
+
+function currentBgLayerEl(){
+  return bgLayers[activeBgLayer].el;
+}
+
+function resetPanPosition(el){
+  panPosX = 50; panPosY = 50;
+  if(el) el.style.backgroundPosition = '50% 50%';
+}
+
+function enablePanning(){
+  const el = currentBgLayerEl();
+  el.classList.add('pannable');
+  resetPanPosition(el);
+}
+
+function disablePanning(){
+  document.querySelectorAll('.wave-canvas-layer').forEach(el=>{
+    el.classList.remove('pannable', 'panning');
+    el.style.backgroundPosition = '';
+  });
+}
+
+function onPanPointerDown(e){
+  if(!focusModeActive) return;
+  const el = currentBgLayerEl();
+  if(!el.classList.contains('pannable')) return;
+  if(e.target.closest('button, input, a, .list-item, .content-cell, .album-cell, .song-row, .title-row')) return;
+  panDragging = true;
+  el.classList.add('panning');
+  panStartX = e.clientX; panStartY = e.clientY;
+  panStartPosX = panPosX; panStartPosY = panPosY;
+}
+function onPanPointerMove(e){
+  if(!panDragging) return;
+  const el = currentBgLayerEl();
+  const rect = el.getBoundingClientRect();
+  // The zoomed layer has roughly 45% extra width/height to roam across;
+  // scale drag distance against that overflow so a full-width drag
+  // travels close to the available pan range, not a tiny nudge.
+  const rangeX = rect.width * 0.45 || 1;
+  const rangeY = rect.height * 0.45 || 1;
+  const dx = (e.clientX - panStartX) / rangeX * 100;
+  const dy = (e.clientY - panStartY) / rangeY * 100;
+  panPosX = Math.max(0, Math.min(100, panStartPosX - dx));
+  panPosY = Math.max(0, Math.min(100, panStartPosY - dy));
+  el.style.backgroundPosition = `${panPosX}% ${panPosY}%`;
+}
+function onPanPointerUp(){
+  if(!panDragging) return;
+  panDragging = false;
+  document.querySelectorAll('.wave-canvas-layer').forEach(el=>el.classList.remove('panning'));
+}
+document.addEventListener('pointerdown', onPanPointerDown);
+document.addEventListener('pointermove', onPanPointerMove);
+document.addEventListener('pointerup', onPanPointerUp);
+document.addEventListener('pointercancel', onPanPointerUp);
+
 function enterImageFocusMode(url){
   if(!url) return;
   focusModeActive = true;
   switchBackgroundToUrl(url, '__focus__:' + url);
+  // Give the crossfade a moment to land on the now-active layer before
+  // switching it into pannable/zoomed mode, so the zoom doesn't visibly
+  // pop mid-fade.
+  setTimeout(enablePanning, 60);
   showFocusHint();
   const btn = document.getElementById('imgFocusBtn');
   if(btn) btn.style.display = 'none';
@@ -1012,6 +1095,7 @@ function enterImageFocusMode(url){
 function exitImageFocusMode(){
   if(!focusModeActive) return;
   focusModeActive = false;
+  disablePanning();
   hideFocusHint();
 }
 
@@ -1047,6 +1131,7 @@ let lastFocusTapTime = 0;
    since its image is no longer what's showing. */
 function stepBackToPlainGalleryBackground(){
   focusModeActive = false;
+  disablePanning();
   switchBackground('images');
   hideFocusHint();
   const btn = document.getElementById('imgFocusBtn');
@@ -1067,7 +1152,7 @@ function handleFocusModePointerDown(e){
     showFocusHint();
   }
 }
-document.addEventListener('pointerdown', handleFocusModePointerDown);
+document.addEventListener('click', handleFocusModePointerDown);
 
 document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && focusModeActive) stepBackToPlainGalleryBackground();
