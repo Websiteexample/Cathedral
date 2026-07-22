@@ -38,9 +38,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
   transition:opacity 1.15s ease;background-size:cover;background-position:center;background-repeat:no-repeat;
   will-change:opacity,filter;
 }
-/* the -40px bleed above keeps filter:blur() from clipping at the viewport edge,
-   which otherwise produces a visible seam/vignette line along all four sides
-   during the blur-pulse transition */
 #waveLayerB{opacity:0;}
 @keyframes bgBlurPulse{
   0%{ filter:blur(0px) saturate(1); }
@@ -58,7 +55,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
   filter: drop-shadow(0 18px 34px var(--shadow-1)) drop-shadow(0 2px 6px var(--shadow-2));
 }
 
-/* ===== animated soft multicolor border, reusable ===== */
 @property --hue{
   syntax:'<number>';
   initial-value:0;
@@ -91,7 +87,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .content-cell.active.mc-border::after{ opacity:0; }
 .content-cell.mc-border::after{ animation:none; }
 
-/* ===== LEFT DISPLAY ===== */
 .left-col{position:relative;width:560px;min-height:760px;display:flex;flex-direction:column;}
 .left-frame{flex:1;display:flex;flex-direction:column;padding:14px;}
 .left-screen{
@@ -108,11 +103,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .display-title-bar h2{margin:0;font-size:20px;color:var(--hilite-text);font-weight:600;letter-spacing:0.3px;}
 .disp-subtitle{display:none;margin-top:3px;font-size:12px;color:var(--dim-text);letter-spacing:0.3px;font-family:"Courier New",monospace;}
 
-/* ===== SHARED FLAT ICON-BUTTON STYLE =====
-   Every arrow / icon control on the site (back arrows, page-turn arrows,
-   favorite stars) shares this one flat treatment now instead of each
-   having its own circular pill. A drop-shadow keeps the icon legible
-   over busy background photos without needing a filled backdrop. */
 .icon-btn{
   border:none;background:transparent;padding:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
@@ -137,7 +127,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 }
 .display-title-bar{padding-left:44px;}
 
-/* artist browse head (shown atop the album grid) */
 .artist-browse-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .artist-browse-art{width:56px;height:56px;border-radius:8px;flex-shrink:0;background-size:cover;box-shadow:0 6px 16px var(--shadow-med);}
 .artist-browse-text h3{margin:0 0 3px 0;font-size:14px;color:var(--hilite-text);}
@@ -156,7 +145,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .album-cell-label h4{margin:0 0 2px 0;font-size:11.5px;color:var(--hilite-text);}
 .album-cell-label p{margin:0;font-size:9.5px;color:var(--dim-text-2);font-family:"Courier New",monospace;}
 
-/* album detail head + song list (shown when an album is opened) */
 .album-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .album-detail-art{width:64px;height:64px;border-radius:8px;flex-shrink:0;background-size:cover;box-shadow:0 8px 18px var(--shadow-med);}
 .album-detail-text h3{margin:0 0 3px 0;font-size:15px;color:var(--hilite-text);}
@@ -189,7 +177,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .display-meta{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line-dashed);font-size:10px;color:var(--dim-text-2);font-family:"Courier New",monospace;letter-spacing:0.5px;}
 .display-meta div{margin-bottom:4px;}
 
-/* ===== media (images / symphonies) detail layout ===== */
 .media-image{width:100%;max-width:420px;height:240px;margin:4px auto 14px auto;box-shadow:0 14px 34px var(--shadow-1);display:block;border-radius:8px;background-size:contain;background-position:center;background-repeat:no-repeat;background-color:rgba(0,0,0,0.35);}
 
 .media-image-wrap{position:relative;max-width:420px;margin:0 auto;}
@@ -207,27 +194,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .img-focus-btn:hover{opacity:0.85;}
 .img-focus-btn svg{flex-shrink:0;}
 
-/* ===== IMAGE FOCUS MODE =====
-   While active, the chosen gallery image occupies the fullscreen
-   background layer (via switchBackgroundToUrl — same crossfade as every
-   other background swap). The stage itself just dims slightly so the
-   photo reads as the clear subject without fully hiding the UI, which
-   keeps every existing control (audio player, nav) reachable rather than
-   demanding a separate teardown/restore path for a true fullscreen
-   takeover. */
-/* Focus mode no longer dims or disables the stage — the whole point is
-   that browsing (left display, right column, audio player) stays fully
-   usable while a gallery image sits behind everything as the page
-   background, exactly like a category background does. So there is no
-   stage-level CSS override here anymore; see the IMAGE FOCUS MODE
-   script block for the actual behavior. */
 #waveStage{ transition:filter .4s ease; }
 
-/* Focus-mode background panning: a modest zoom (not a huge blow-up) so
-   there's extra image real-estate beyond the viewport to drag around in,
-   while still reading as "the same photo", not a wildly cropped one.
-   background-position is driven by JS (see IMAGE FOCUS PAN below) rather
-   than fixed here. */
 .wave-canvas-layer.pannable{
   background-size:145% !important;
   cursor:grab;
@@ -236,10 +204,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 }
 .wave-canvas-layer.pannable.panning{ cursor:grabbing; transition:none; }
 
-/* While a background pan-drag is active, nothing on the page should
-   highlight/select as text, and every element shows the grabbing
-   cursor — otherwise dragging across list rows or section cells
-   selects their text instead of just panning the photo underneath. */
 body.is-panning-drag,
 body.is-panning-drag *{
   user-select:none !important;
@@ -261,8 +225,6 @@ body.is-panning-drag *{
 .focus-hint svg{flex-shrink:0;opacity:0.85;}
 .focus-hint.show{ opacity:1; transform:translate(-50%,0); }
 
-
-/* ===== PDF viewer (bible / books) ===== */
 .pdf-viewport{
   position:relative;width:100%;min-height:440px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -316,12 +278,11 @@ body.is-panning-drag *{
 .favorites-list .list-item{background:var(--panel-bg-soft);}
 .fav-cat-tag{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim-text-2);}
 
-/* ===== RIGHT CONTROL ===== */
 .right-col{position:relative;width:320px;min-height:760px;display:flex;flex-direction:column;padding:20px 16px;}
 .mobile-fav-btn{ display:none; }
 
 .brand-plate{text-align:center;padding:6px 0 18px 0;border-bottom:1px solid var(--line-soft);margin-bottom:16px;}
-.mobile-step3-title{ display:none; } /* mobile-only, see @media(max-width:760px) below */
+.mobile-step3-title{ display:none; }
 .title-row{display:flex;align-items:baseline;justify-content:center;gap:3px;flex-wrap:nowrap;cursor:pointer;user-select:none;transition:opacity .15s ease;}
 .title-row:hover{opacity:0.75;}
 .title-row:active{opacity:0.55;}
@@ -346,7 +307,6 @@ body.is-panning-drag *{
 .section-label{font-size:9px;letter-spacing:3px;color:var(--dim-text-2);text-transform:uppercase;padding:0 2px 8px 2px;text-align:left;font-weight:600;}
 .section-label.rainbow-text{font-weight:700;}
 
-/* ===== CONTENT (4 mini screens) ===== */
 .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
 .content-cell{
   position:relative;border-radius:8px;overflow:hidden;height:64px;cursor:pointer;
@@ -368,7 +328,6 @@ body.is-panning-drag *{
 
 .content-image-space{height:34px;margin-bottom:10px;}
 
-/* ===== MINI LIVE SCREEN ===== */
 .mini-screen-wrap{margin-bottom:14px;}
 .mini-screen{
   position:relative;height:70px;border-radius:8px;overflow:hidden;
@@ -381,7 +340,6 @@ body.is-panning-drag *{
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.35;transform:scale(0.8);}}
 .mini-clock-tag{position:absolute;top:6px;right:8px;z-index:5;font-size:9px;letter-spacing:1px;color:var(--dim-text);font-family:"Courier New",monospace;}
 
-/* ===== CONTENT LIST (search + list), FIXED SIZE ===== */
 .list-panel-outer{position:relative;border-radius:8px;height:280px;display:flex;flex-direction:column;flex-shrink:0;}
 .list-panel-titlebar{display:flex;justify-content:space-between;align-items:center;padding:0 2px 8px 2px;font-size:9px;letter-spacing:1px;}
 
@@ -454,9 +412,6 @@ body.is-panning-drag *{
 .list-item:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);}
 .list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:contain;background-position:center;background-repeat:no-repeat;background-color:rgba(0,0,0,0.35);border-radius:4px;position:relative;overflow:hidden;}
 
-/* Shown while an image thumb's availability is still being probed —
-   without this, a missing/slow image is just a static blank square with
-   no feedback that anything is happening at all. */
 @keyframes thumbShimmer{ 0%{ background-position:-120% 0; } 100%{ background-position:220% 0; } }
 .thumb-loading::after{
   content:"";position:absolute;inset:0;
@@ -464,10 +419,6 @@ body.is-panning-drag *{
   background-size:200% 100%;
   animation:thumbShimmer 1.3s ease-in-out infinite;
 }
-/* Shown once a thumb's image URL has been probed and 404'd — makes a
-   missing file visibly obvious (a small broken-image glyph) instead of
-   silently rendering as a plain dark/blank box that looks like a bug
-   in the site rather than a missing asset. */
 .thumb-broken{ background:linear-gradient(135deg,#2a2a2e,#1c1c1f) !important; }
 .thumb-broken::before{
   content:"";position:absolute;inset:0;margin:auto;width:16px;height:16px;
@@ -481,17 +432,12 @@ body.is-panning-drag *{
   text-transform:uppercase;
 }
 
-/* Large detail-view image gets a softer "breathing blur" pulse instead of
-   the shimmer sweep used on small thumbs — reads better at that size and
-   matches the site's existing blur-pulse background transition language,
-   so the loading state feels like part of the same visual system rather
-   than a bolted-on spinner. */
 @keyframes mediaBlurPulse{
   0%,100%{ filter:blur(6px) brightness(0.85); }
   50%{ filter:blur(10px) brightness(0.95); }
 }
 .media-image.thumb-loading{ animation:mediaBlurPulse 1.6s ease-in-out infinite; }
-.media-image.thumb-loading::after{ display:none; } /* skip the shimmer sweep on the big image, blur pulse is enough */
+.media-image.thumb-loading::after{ display:none; }
 .list-item-text{padding-right:20px;}
 .list-item-text h4{margin:0 0 3px 0;font-size:11px;color:var(--hilite-text);letter-spacing:0.3px;}
 .list-item-text p{margin:0;font-size:9.5px;line-height:1.4;color:var(--dim-text);font-family:"Courier New",monospace;}
@@ -512,7 +458,6 @@ body.is-panning-drag *{
 .item-fav-star.active{opacity:1;}
 .item-fav-star.active svg{fill:var(--star-gold);stroke:var(--star-gold);filter:drop-shadow(0 0 3px var(--star-gold-glow));}
 
-/* ===== AUDIO PLAYER ===== */
 .audio-player{
   margin-top:12px;border-radius:10px;padding:12px;flex-shrink:0;
   background:var(--panel-bg-med);
@@ -555,15 +500,6 @@ body.is-panning-drag *{
 
 @media(max-width:1000px){.stage{transform:scale(0.78);transform-origin:center center;flex-direction:column;align-items:center;}}
 
-/* ===== MOBILE STEP FLOW =====
-   On small screens the experience becomes a 3-step wizard:
-   step 1 -> only the Content grid (choose a section)
-   step 2 -> only that section's list (search + list)
-   step 3 -> only the big display (left screen) showing the chosen item
-   Everything else in the right column (brand plate, mini live screen,
-   audio player, status strip) stays visible throughout since it's
-   small chrome, not part of the step content itself.
-*/
 @media(max-width:760px){
   .stage{
     transform:none;
@@ -577,11 +513,6 @@ body.is-panning-drag *{
   .left-col, .right-col{ width:100%; min-height:0; }
   .left-frame{ padding:0; }
 
-  /* The desktop layout was designed at 960px and simply reflowed here,
-     which left every font-size/icon-size still tuned for that scale.
-     clamp() lets each of these grow with the viewport (between a floor
-     that stays legible on a small phone and the original desktop value
-     as a ceiling) instead of staying pinned to the small end always. */
   body.is-mobile .display-title-bar h2{ font-size:clamp(17px, 4.5vw, 20px); }
   body.is-mobile .disp-subtitle{ font-size:clamp(11px, 3vw, 12px); }
   body.is-mobile .display-desc{ font-size:clamp(13px, 3.4vw, 14px); line-height:1.75; }
@@ -609,48 +540,16 @@ body.is-panning-drag *{
 
   body.is-mobile[data-mobile-step="2"] .list-panel-outer{ display:flex; }
 
-  /* Step 3 (item detail) shows the display panel. It's placed first via
-     normal document order (the step-3 title block, then .left-col, then
-     .right-col all sit in that order in the markup) rather than being
-     pulled out with position:fixed or a flex "order" override — that way
-     it behaves like a normal in-flow section, sized and padded exactly
-     like the stage around it, instead of an overlay bar. */
   body.is-mobile[data-mobile-step="3"] .left-col{ display:flex; }
   body.is-mobile[data-mobile-step="3"] .content-image-space{ display:none; }
 
-  /* Step 3 shows a dedicated title above the display panel, matching the
-     look of steps 1 and 2 (both show the brand-plate inside .right-col,
-     which itself sits at the top of the stage on those steps). The real
-     brand-plate lives inside .right-col, and on step 3 .right-col renders
-     *after* .left-col (since .left-col comes first in source order for
-     step 3 to show the display up top) — so the real title would
-     otherwise land below the display instead of above it. This block is
-     a true sibling of .left-col placed before it in the markup, so it
-     renders above the display in normal flow — no fixed positioning, no
-     overlay, same width as every other step's header. A little extra
-     top padding (vs. the normal brand-plate) gives it some breathing
-     room under the very top edge of the stage, and text-align:center is
-     spelled out explicitly (rather than relying only on the inner flex
-     row) so it stays centered regardless of anything else on the page. */
   body.is-mobile[data-mobile-step="3"] .mobile-step3-title{
     display:block;
     width:100%;
     text-align:center;
     padding-top:16px;
   }
-  /* The real brand-plate (inside .right-col) would otherwise still render
-     further down the page on step 3, since .right-col comes after
-     .left-col in the flow — producing two "OnlineCathedral" titles on
-     screen at once. The .mobile-step3-title above is the only title step
-     3 should show, so hide this one specifically on step 3. Scoped to
-     .right-col so it never touches the duplicate itself. */
   body.is-mobile[data-mobile-step="3"] .right-col .brand-plate{ display:none; }
-  /* Same reasoning for the step dots: the real ones live inside
-     .right-col and would render below the display on step 3. The
-     dedicated .mobile-step3-dots block (a sibling of .mobile-step3-title,
-     placed right after it — so it sits below the title's border line,
-     not squeezed above it) takes over in that case, so hide the
-     .right-col copy to avoid showing two rows of dots at once. */
   body.is-mobile[data-mobile-step="3"] .right-col > .mobile-step-dots{ display:none; }
   body.is-mobile[data-mobile-step="3"] .mobile-step3-dots{ display:flex; }
 
@@ -661,23 +560,13 @@ body.is-panning-drag *{
   body.is-mobile[data-mobile-step="2"] .back-arrow{ display:inline-flex; }
   body.is-mobile .back-arrow svg{ width:18px; height:18px; }
 
-  /* Step 3 (big display) has no list-panel back-arrow available since that
-     panel is hidden here — instead force the display's own back button
-     (normally reserved for album->artist navigation) to always be visible
-     on step 3, so there is always a way back to the list. */
   body.is-mobile[data-mobile-step="3"] .disp-back-arrow{ display:flex !important; }
 
-  /* Flat icons read fine visually at their small size, but a 22px box is
-     tight to tap accurately on a touchscreen — give these a bigger hit
-     area on mobile while keeping the icon itself the same visual size. */
   body.is-mobile .disp-back-arrow{ width:36px;height:36px;top:8px;left:6px; }
   body.is-mobile .fav-toggle-btn{ width:36px;height:36px;top:8px;right:6px; }
   body.is-mobile .book-nav button{ width:40px;height:40px; }
   body.is-mobile .display-title-bar{ padding-left:50px;padding-right:50px; }
 
-  /* List-row and song-row star buttons are 18px, well under a comfortable
-     touch target — enlarge the tappable box on mobile without changing
-     the visual star size (the svg inside stays put via flex centering). */
   body.is-mobile .item-fav-star{ width:34px; height:34px; top:0; right:-4px; }
   body.is-mobile .song-row .song-fav-star{ right:16px; }
   body.is-mobile .song-row{ padding-right:46px; }
@@ -688,9 +577,6 @@ body.is-panning-drag *{
   body.is-mobile .album-cell-art{ height:120px; }
   body.is-mobile .media-image{ max-width:100%; height:clamp(200px, 48vw, 300px); }
 
-  /* iOS Safari zooms the whole page in when a focused input's font-size
-     is under 16px — bumping just this input avoids that jarring zoom
-     without changing how the search bar looks on desktop. */
   body.is-mobile .search-bar input{ font-size:16px; }
 
   body.is-mobile .mini-screen-wrap{ display:none; }
@@ -701,9 +587,6 @@ body.is-panning-drag *{
   .mobile-step-dots span, .mobile-step3-dots span{ width:6px; height:6px; border-radius:50%; background:var(--dim-text-2); opacity:0.4; transition:all .2s ease; }
   .mobile-step-dots span.on, .mobile-step3-dots span.on{ opacity:1; background:var(--hilite-text); width:16px; border-radius:4px; }
 
-  /* The desktop favorites star lives inside the left display, which only
-     exists on mobile at step 3 — meaning steps 1 and 2 had no way to reach
-     Favorites at all. This duplicate button stays on screen at every step. */
   body.is-mobile .mobile-fav-btn{
     display:flex; position:absolute; top:12px; right:8px; z-index:20;
     width:36px;height:36px;
@@ -711,23 +594,11 @@ body.is-panning-drag *{
   }
   body.is-mobile .mobile-fav-btn svg{fill:none;stroke:var(--dim-text);stroke-width:1.6;transition:all .2s ease;}
   body.is-mobile .mobile-fav-btn.active svg{fill:var(--star-gold);stroke:var(--star-gold);}
-  /* Step 3 already shows the real display's own star button (left-col is
-     visible there), so hide this duplicate to avoid showing two stars. */
   body.is-mobile[data-mobile-step="3"] .mobile-fav-btn{ display:none; }
 
-  /* Small screens still need a real safe viewport height so the audio
-     player + status strip don't get squeezed under the dynamic mobile
-     browser chrome. */
   body.is-mobile .bg-wrap{ padding-top:18px; padding-bottom:18px; }
 }
 
-/* ===== REDUCED MOTION =====
-   Several decorative effects loop forever (the conic-gradient hue-shift
-   border, the rainbow text flow, the live-dot pulse, the background
-   blur-pulse crossfade, the canvas particle/waveform effects). None of
-   these carry information, so for anyone who's asked their OS for less
-   motion, freeze them to a single static frame instead of just speeding
-   them up or removing them — the layout and colors stay identical. */
 @media (prefers-reduced-motion: reduce){
   .mc-border::after{ animation:none; }
   .rainbow-text,
@@ -743,12 +614,6 @@ body.is-panning-drag *{
   *{ scroll-behavior:auto !important; }
 }
 
-/* ===== KEYBOARD FOCUS =====
-   The default browser outline is easy to lose against this dark,
-   borderless design, so real focusable controls (buttons, the search
-   input, the seek slider) get a visible ring that matches the site's
-   accent instead. Scoped to :focus-visible so it only appears for
-   keyboard/assistive-tech navigation, not every mouse click. */
 button:focus-visible,
 input:focus-visible{
   outline:2px solid var(--hilite-text);
@@ -756,7 +621,14 @@ input:focus-visible{
   border-radius:4px;
 }
 .icon-btn:focus-visible{ opacity:0.8; }
+/* Search bar never shows a focus outline, by design or by accident
+   (including the pan-drag-triggered focus fixed in JS below). */
+.search-bar input:focus,
+.search-bar input:focus-visible{
+  outline:none;
+}
 </style>
+<link rel="icon" type="image/png" href="images/favicon.png">
 <link rel="preload" as="image" href="images/background-1.jpg" fetchpriority="high">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 </head>
@@ -775,16 +647,6 @@ input:focus-visible{
 <div class="bg-wrap">
 <div class="stage">
 
-  <!-- Mobile-only title + step-dots shown above the display on step 3
-       (item detail). Steps 1 and 2 use the brand-plate + dots inside
-       .right-col further down; this duplicate exists because on step 3
-       .left-col (the display) needs to render above .right-col, so the
-       real brand-plate/dots (nested inside right-col) would otherwise
-       render below the display instead of above it. It's a true sibling
-       of .left-col placed before it in the markup, and rendered in
-       normal flow (not fixed/overlaid), so it looks and sits exactly
-       like the header on steps 1-2. Hidden everywhere else / from AT so
-       there's never a duplicate "OnlineCathedral" announced. -->
   <div class="brand-plate mobile-step3-title" id="mobileStep3Title" aria-hidden="true">
     <div class="title-row">
       <span class="t-online">Online</span><span class="t-cathedral">Cathedral</span>
@@ -901,22 +763,8 @@ input:focus-visible{
 </div>
 
 <script>
-/* ============ THEME ============
-   Dark is the only theme now — no toggle, no light variant. */
 function ink(alpha){ return `rgba(236,234,228,${alpha})`; }
 
-/* ============ BACKGROUND: dual-layer image crossfade ============
-   Two stacked full-screen layers (A/B) hold background images per
-   section. Switching sections swaps the hidden layer's image, fades
-   it in over the visible one, and runs the blur-pulse transition
-   already defined on .bg-transitioning. Drop your files in an
-   "images" folder next to this HTML, named background-1.jpg .. background-5.jpg:
-     1 = default (no section selected)
-     2 = bible
-     3 = books
-     4 = images
-     5 = symphonies
-*/
 const waveLayerA = document.getElementById('waveLayerA');
 const waveLayerB = document.getElementById('waveLayerB');
 const BG_IMAGES = {
@@ -927,13 +775,6 @@ const BG_IMAGES = {
   symphonies: 'images/background-5.jpg'
 };
 
-/* Preload every background image as soon as the script runs (not lazily on
-   first use). This is what actually fixes the perceived "slow loading":
-   without it, the browser only starts fetching a section's image the moment
-   you click it, so the crossfade begins on an empty/blank layer and the
-   picture pops in mid-transition. Kicking all 5 requests off immediately
-   means that by the time someone clicks a section, the image is already
-   sitting in cache and the crossfade is instant. */
 const bgImageCache = {};
 function preloadBackgrounds(){
   Object.entries(BG_IMAGES).forEach(([key, url])=>{
@@ -954,11 +795,6 @@ bgLayers.A.el.style.backgroundImage = `url('${BG_IMAGES.default}')`;
 
 let bgTransitionTimer = null;
 
-/* Core crossfade, driven by a raw image URL. switchBackground(cat) below
-   is just this plus a category->URL lookup — pulling the URL resolution
-   out means any arbitrary image (e.g. a gallery photo put into "focus
-   mode") can reuse the exact same transition without faking a fake
-   category key for it. */
 function switchBackgroundToUrl(url, key){
   const current = bgLayers[activeBgLayer];
   if(current.cat === key) return;
@@ -968,21 +804,12 @@ function switchBackgroundToUrl(url, key){
   target.cat = key;
   target.el.style.backgroundImage = `url('${url}')`;
 
-  // Flip which layer is "active" immediately rather than waiting for the
-  // fade to finish. If this stayed pending until a setTimeout (as before),
-  // clicking a second category mid-fade would see the stale activeBgLayer,
-  // grab the SAME layer as the target again, and overwrite its image while
-  // it was still fading in - causing a visible pop instead of a crossfade.
   activeBgLayer = targetKey;
 
-  // Force a reflow before re-adding the class so the blur-pulse animation
-  // restarts every time, even if this exact layer was already mid-pulse a
-  // moment ago (re-adding a class that's already present is a no-op in CSS
-  // and would otherwise silently skip the animation on fast repeat clicks).
   if(bgTransitionTimer) clearTimeout(bgTransitionTimer);
   current.el.classList.remove('bg-transitioning');
   target.el.classList.remove('bg-transitioning');
-  void target.el.offsetWidth; // force reflow to restart the animation cleanly
+  void target.el.offsetWidth;
   current.el.classList.add('bg-transitioning');
   target.el.classList.add('bg-transitioning');
 
@@ -999,34 +826,9 @@ function switchBackground(cat){
   switchBackgroundToUrl(BG_IMAGES[cat] || BG_IMAGES.default, cat);
 }
 
-/* ============ IMAGE FOCUS MODE ============
-   The currently-open gallery image is shown as the page background (the
-   same dual-layer crossfade every category background already uses),
-   sitting behind the stage — it never covers or dims the left/right
-   panels, so browsing stays fully usable while it's active.
-
-   Lifecycle:
-   - Opening an image in the Images category puts it in the background
-     automatically (via selectItem -> enterImageFocusMode).
-   - Opening a different image swaps the background to that image, using
-     the normal blur crossfade — no manual re-trigger needed.
-   - Leaving the Images section (switching category, going home) clears
-     focus mode and the background reverts to that section's normal
-     default image, same crossfade.
-   - Double-tapping/double-clicking anywhere reverts to the Images
-     section's own default background (background-4.jpg) without leaving
-     the section — a quick "step back to the gallery's plain background"
-     without closing the item itself.
-*/
 let focusModeActive = false;
 let focusModeHintTimer = null;
 
-/* ===== Focus-mode background panning =====
-   While a gallery image sits in the background (focus mode), the layer
-   is zoomed in slightly (see .pannable in CSS) so there's room to drag
-   around and reveal parts of the photo that a plain "fit to screen"
-   view would crop off. posX/posY are percentages (0-100) tracking
-   background-position, starting centered. */
 let panPosX = 50, panPosY = 50;
 let panDragging = false;
 let panStartX = 0, panStartY = 0;
@@ -1054,27 +856,34 @@ function disablePanning(){
   });
 }
 
-// Only real, sustained mouse/touch/pen movement counts as a pan drag —
-// this stays false until the pointer has moved past a small threshold,
-// so a plain click/tap on a list item, star, or button still behaves
-// normally instead of being swallowed by drag setup.
 const PAN_DRAG_THRESHOLD = 6; // px
-let panArmed = false;   // pointer is down, might turn into a drag
-let panMoved = false;   // pointer has moved past the threshold — it's a real drag now
+let panArmed = false;
+let panMoved = false;
 
 function suppressNextClickOnce(){
   const killClick = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); };
   document.addEventListener('click', killClick, { capture:true, once:true });
-  // Safety net: if no click follows within a beat (e.g. touch without a
-  // synthesized click), don't leave a stray listener hanging forever.
   setTimeout(()=> document.removeEventListener('click', killClick, { capture:true }), 500);
+}
+
+// Dragging the background pan across the page was able to land on/over
+// the search input and leave it focused (native browser focus-on-pointerdown
+// happens before our own drag-threshold logic runs), which showed the
+// focus outline even though the user never meant to interact with the
+// field. Blur any input the instant a real drag is confirmed, and again
+// on pointer-up as a fallback for drags that started on the input itself.
+function blurStrayInputFocus(){
+  const active = document.activeElement;
+  if(active && active.tagName === 'INPUT'){
+    active.blur();
+  }
 }
 
 function onPanPointerDown(e){
   if(!focusModeActive) return;
   const el = currentBgLayerEl();
   if(!el.classList.contains('pannable')) return;
-  if(e.button !== undefined && e.button !== 0) return; // left-click / primary touch only
+  if(e.button !== undefined && e.button !== 0) return;
   panArmed = true;
   panMoved = false;
   panStartX = e.clientX; panStartY = e.clientY;
@@ -1086,20 +895,14 @@ function onPanPointerMove(e){
   const dyRaw = e.clientY - panStartY;
   if(!panMoved){
     if(Math.hypot(dxRaw, dyRaw) < PAN_DRAG_THRESHOLD) return;
-    // Crossed the threshold — this is now a genuine drag: start visuals,
-    // block text selection for its duration, and prevent the click that
-    // would otherwise fire on whatever the pointer lands on afterwards
-    // (a list item, a section cell, etc.) from being treated as a tap.
     panMoved = true;
     panDragging = true;
     document.body.classList.add('is-panning-drag');
     currentBgLayerEl().classList.add('panning');
+    blurStrayInputFocus();
   }
   const el = currentBgLayerEl();
   const rect = el.getBoundingClientRect();
-  // The zoomed layer has roughly 45% extra width/height to roam across;
-  // scale drag distance against that overflow so a full-drag travels
-  // close to the available pan range, not a tiny nudge.
   const rangeX = rect.width * 0.45 || 1;
   const rangeY = rect.height * 0.45 || 1;
   const dx = dxRaw / rangeX * 100;
@@ -1115,6 +918,7 @@ function onPanPointerUp(){
     document.body.classList.remove('is-panning-drag');
     document.querySelectorAll('.wave-canvas-layer').forEach(el=>el.classList.remove('panning'));
     suppressNextClickOnce();
+    blurStrayInputFocus();
   }
   panMoved = false;
 }
@@ -1127,18 +931,12 @@ function enterImageFocusMode(url){
   if(!url) return;
   focusModeActive = true;
   switchBackgroundToUrl(url, '__focus__:' + url);
-  // Give the crossfade a moment to land on the now-active layer before
-  // switching it into pannable/zoomed mode, so the zoom doesn't visibly
-  // pop mid-fade.
   setTimeout(enablePanning, 60);
   showFocusHint();
   const btn = document.getElementById('imgFocusBtn');
   if(btn) btn.style.display = 'none';
 }
 
-/* Called whenever focus mode should end and the ordinary section
-   background should take over again — leaving the Images category
-   entirely (not just double-tapping back to its default background). */
 function exitImageFocusMode(){
   if(!focusModeActive) return;
   focusModeActive = false;
@@ -1151,9 +949,6 @@ function showFocusHint(){
   if(!hint) return;
   hint.classList.add('show');
   clearTimeout(focusModeHintTimer);
-  // Hint fades on its own after a few seconds so it doesn't linger and
-  // block the view, but reappears on a single tap (see the tap handler
-  // below) in case the person forgot how to step back out.
   focusModeHintTimer = setTimeout(()=> hint.classList.remove('show'), 3200);
 }
 function hideFocusHint(){
@@ -1162,20 +957,7 @@ function hideFocusHint(){
   clearTimeout(focusModeHintTimer);
 }
 
-/* Double-tap/double-click anywhere reverts the background to the Images
-   section's own default photo (not out of the section — just back to
-   its plain background), using the same crossfade. A single tap just
-   re-shows the hint in case it already faded, exactly like before.
-   Listens on `document` (not `#waveStage`) since the stage sits on top
-   of the background at full opacity/pointer-events now — the hint and
-   exit gesture need to work no matter where on the page the tap lands,
-   as long as it's not on a real interactive control (buttons, inputs,
-   list items, etc.), which are left alone so normal clicks still work. */
 let lastFocusTapTime = 0;
-/* Steps the background back to the Images section's own plain default
-   photo, without leaving the section — used by both the double-tap
-   gesture and Escape. Reveals the "Show as background" button again
-   since its image is no longer what's showing. */
 function stepBackToPlainGalleryBackground(){
   focusModeActive = false;
   disablePanning();
@@ -1187,8 +969,6 @@ function stepBackToPlainGalleryBackground(){
 
 function handleFocusModePointerDown(e){
   if(!focusModeActive) return;
-  // Don't hijack taps on actual controls — only bare background/empty
-  // areas should trigger the double-tap gesture.
   if(e.target.closest('button, input, a, .list-item, .content-cell, .album-cell, .song-row, .title-row')) return;
   const now = Date.now();
   if(now - lastFocusTapTime < 350){
@@ -1205,10 +985,6 @@ document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && focusModeActive) stepBackToPlainGalleryBackground();
 });
 
-/* Tapping/clicking the "OnlineCathedral" title acts as a home button:
-   it clears the current section, drops the left display back to its
-   empty state, and eases the background back to the default image
-   using the same blur-pulse crossfade as switching sections. */
 function goHome(){
   if(focusModeActive) exitImageFocusMode();
   switchBackground('default');
@@ -1227,26 +1003,13 @@ function goHome(){
 }
 document.getElementById('titleRow').addEventListener('click', goHome);
 
-/* There are two ".title-row" elements in the DOM: the real one inside
-   .right-col, and the duplicate shown above the display on mobile
-   step 3 (see .mobile-step3-title). Both need to flip into the rainbow
-   "colorized" state together whenever a section is selected, or the
-   duplicate title is left blank/plain while the real (usually hidden)
-   one underneath was the only one actually getting the class. */
 function setTitleColorized(on){
   document.querySelectorAll('.title-row').forEach(el=>el.classList.toggle('colorized', on));
 }
 
-/* Every canvas effect below runs its own requestAnimationFrame loop
-   forever. That's fine while the tab is visible, but with several loops
-   stacked up it's needless CPU/GPU/battery drain the moment the tab is
-   backgrounded. This single flag lets every loop skip its draw work
-   (while still re-scheduling itself) whenever the page isn't visible,
-   and they all resume instantly when it becomes visible again. */
 let pageVisible = !document.hidden;
 document.addEventListener('visibilitychange', ()=>{ pageVisible = !document.hidden; });
 
-/* ============ MINI LIVE PARTICLE SCREEN ============ */
 function setupParticles(canvas, count, linkDist){
   const ctx = canvas.getContext('2d');
   let cw, ch;
@@ -1296,7 +1059,6 @@ function setupParticles(canvas, count, linkDist){
 }
 setupParticles(document.getElementById('particleCanvas'), 22, 46);
 
-/* ============ CONTENT CELL MINI VISUALS ============ */
 function effectParticlesRise(canvas, getColored){
   const ctx = canvas.getContext('2d');
   let cw,ch;
@@ -1439,31 +1201,6 @@ document.querySelectorAll('.content-cell').forEach(cell=>{
   else if(cat === 'symphonies') effectWaveformBars(canvas, getColored);
 });
 
-/* ============ CONTENT DATA ============
-   ------------------------------------------------------------------
-   FOLDER STRUCTURE — read this before adding content
-   ------------------------------------------------------------------
-   Everything the site displays is a plain file sitting in a folder next
-   to this HTML file. Nothing needs to be uploaded through the browser;
-   just drop files in the right place and add one matching entry below
-   (or set "file" to the exact filename, otherwise the title is
-   slugified automatically — see slugify()/PATHS below).
-
-     content/bible/<file>.pdf            one PDF per chapter entry
-     content/books/<file>.pdf            one PDF per book entry
-     content/images/<file>.jpg           one image per gallery entry
-     content/music/<Artist>/<Album>/<Song>.mp3
-       - one folder per artist
-       - inside it, one folder per album (album names must be unique —
-         two different artists should not reuse the same album folder
-         name, since album lookups are keyed by title)
-       - inside each album folder, one audio file per song, plus an
-         optional cover.jpg for the album artwork
-
-   Each category below starts with a single BLANK entry as a template —
-   duplicate it and fill in the fields for every real item you add.
-   ------------------------------------------------------------------ */
-
 const PATHS = {
   bible: 'content/bible/',
   books: 'content/books/',
@@ -1478,38 +1215,26 @@ function slugify(str){
 }
 
 const DATA = {
-  // Bible: one entry per chapter/passage. "file" (optional) is the PDF
-  // filename inside content/bible/ — otherwise it's built from the title.
   bible: [
     { title: "", book: "", chapterLabel: "", file: "", short: "", tech: "" }
   ],
 
-  // Books: one entry per book. "file" (optional) is the PDF filename
-  // inside content/books/ — otherwise it's built from the title.
   books: [
     { title: "", author: "", year: "", file: "", short: "", tech: "" }
   ],
 
-  // Images: populated at runtime from the imagesjson manifest via
-  // loadImagesManifest() below. Starts empty (not a blank template entry)
-  // since the list view already handles an empty array by showing
-  // "No results found." while the manifest is still loading.
   images: [],
 
-  // Symphonies: Artist -> Albums -> Songs. Duplicate the artist block for
-  // each new artist, the album block for each new album, and the song
-  // line for each new track. "file" (optional) on a song is the audio
-  // filename inside its album folder — otherwise built from the song title.
   symphonies: [
     {
-      title: "",     // Artist name (folder: content/music/<Artist>/)
+      title: "",
       short: "",
-      cover: "",     // optional artist image filename inside content/images/
+      cover: "",
       albums: [
         {
-          title: "", // Album name (folder: content/music/<Artist>/<Album>/) — must be unique
+          title: "",
           year: "", tech: "",
-          cover: "", // optional cover image filename inside the album folder (defaults to cover.jpg)
+          cover: "",
           songs: [
             { title: "", duration: 0, file: "" }
           ]
@@ -1519,32 +1244,16 @@ const DATA = {
   ]
 };
 
-/* Resolve the display thumbnail for a bible/books/images entry: a real
-   image if the folder has one, otherwise a neutral placeholder so the
-   layout never breaks while content is still being filled in. */
 function thumbFor(cat, item){
   if(item.file || item.title) return `url('${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}')`;
   return 'linear-gradient(135deg,#e6e6ea,#cfcfd4)';
 }
-/* Same resolution as thumbFor, but returns the bare URL string instead of
-   a CSS background: value — needed anywhere the URL is handed to
-   something other than an inline style, like the fullscreen background
-   layer in "image focus mode". Returns null for the placeholder case
-   (no real image to focus on). */
 function rawImageUrlFor(cat, item){
   if(item.file || item.title) return `${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}`;
   return null;
 }
 
-/* ===== Image availability check =====
-   background-image can't tell the difference between "still loading" and
-   "404, will never load" — a broken background stays silently blank
-   forever with no visible signal, which is exactly what showed up as
-   solid black/dark boxes in the gallery. This probes each URL with a
-   real Image() (which does fire load/error) and caches the verdict so
-   repeat renders (scrolling, re-opening the same item) don't re-fetch.
-   Returns a promise resolving to true/false. */
-const imageAvailabilityCache = new Map(); // url -> Promise<boolean>
+const imageAvailabilityCache = new Map();
 function checkImageAvailable(url){
   if(!url) return Promise.resolve(false);
   if(imageAvailabilityCache.has(url)) return imageAvailabilityCache.get(url);
@@ -1567,34 +1276,15 @@ function songSrcFor(artist, album, song){
   return `${PATHS.music}${slugify(artist.title)}/${slugify(album.title)}/${file}`;
 }
 
-/* ===== Images manifest loader =====
-   Fetches the images manifest (a JSON array of
-   {title, artist, year, file, type}) from the imagese/ folder and
-   populates DATA.images so the rest of the site's existing rendering
-   code (renderList, selectItem, thumbFor, favorites, search) works
-   completely unmodified once this resolves.
-
-   Tries a few common filenames in order, since "what do I name this
-   file" is the single most likely point of failure for this feature —
-   the manifest can be named imagesjson, imagesjson.json, images.json,
-   or manifest.json and this will find it either way. The first one that
-   actually returns valid JSON wins.
-
-   "type" from the manifest is mapped to "tech" because that's the field
-   name selectItem()/mediaDisplayHTML() already read for the TYPE: row. */
 const IMAGES_MANIFEST_CANDIDATES = ['imagesjson', 'imagesjson.json', 'images.json', 'manifest.json'];
 let imagesManifestLoaded = false;
 let imagesManifestLoading = null;
-let imagesManifestError = null; // last error, surfaced in the UI if every candidate fails
+let imagesManifestError = null;
 
 async function tryFetchManifest(url){
   const res = await fetch(url, { cache: 'no-store' });
   if(!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
   const text = await res.text();
-  // Parse manually rather than res.json(): some static hosts (and git
-  // raw serving) return manifest files as text/plain or without a
-  // content-type at all, which makes some browsers' res.json() reject
-  // a perfectly valid JSON body. Parsing the text ourselves sidesteps that.
   return JSON.parse(text);
 }
 
@@ -1603,7 +1293,7 @@ async function loadImagesManifest(){
   if(imagesManifestLoading) return imagesManifestLoading;
   imagesManifestLoading = (async () => {
     let raw = null;
-    const attempts = []; // { url, message } for every candidate tried
+    const attempts = [];
     for(const name of IMAGES_MANIFEST_CANDIDATES){
       const url = PATHS.images + name;
       try{
@@ -1624,13 +1314,6 @@ async function loadImagesManifest(){
       }));
       imagesManifestError = null;
     } else {
-      // No manifest found under any candidate name, or it wasn't a JSON
-      // array. Leave DATA.images empty; the list view shows a clear
-      // message (instead of a silent blank list) so this is easy to
-      // diagnose from the page itself, not just the console. Log every
-      // attempted URL, not just the last one, so a 404-on-all-four is
-      // immediately readable as "the whole folder is missing" rather
-      // than looking like a single wrong filename guess.
       console.warn('Could not load images manifest. Tried:', attempts);
       imagesManifestError = attempts.length
         ? `Tried ${attempts.length} filenames in ${PATHS.images} — all failed (e.g. ${attempts[attempts.length-1].message})`
@@ -1638,19 +1321,12 @@ async function loadImagesManifest(){
       DATA.images = [];
     }
     imagesManifestLoaded = true;
-    // If the Images category is the one currently open when this
-    // resolves, refresh the list so the fetched entries actually appear
-    // instead of waiting for the next category click.
     if(currentCat === 'images') renderList('images');
   })();
   return imagesManifestLoading;
 }
-// Kick the fetch off immediately (same "preload early" approach used for
-// the background images) so the manifest is very likely already resolved
-// by the time someone clicks into the Images category.
 loadImagesManifest();
 
-/* Flat lookup helpers for the Symphonies artist/album/song tree */
 function symArtists(){ return DATA.symphonies; }
 function findArtist(title){ return DATA.symphonies.find(a=>a.title===title); }
 function findAlbum(artistTitle, albumTitle){
@@ -1668,17 +1344,11 @@ function allAlbumsFlat(){
   return out;
 }
 
-
 const STAR_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.3 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>';
 
 let currentCat = "bible";
 let searchTerm = "";
 let showingFavorites = false;
-/* Favorites persist across reloads via localStorage. Wrapped in try/catch
-   since some browsers (private/incognito mode, or storage disabled by
-   policy) throw on access rather than just failing silently — in that
-   case favorites still work for the session, they just won't survive
-   a reload, same as before this change. */
 const FAVORITES_STORAGE_KEY = 'oc_favorites_v1';
 function loadStoredFavorites(){
   try{
@@ -1722,11 +1392,6 @@ function getFilteredItems(cat){
   return items.filter(it => it.title.toLowerCase().includes(searchTerm.toLowerCase()));
 }
 
-/* Library folders can hold thousands of entries, so the list renders in
-   pages instead of building the whole DOM at once — each page is appended
-   only when the user scrolls near the bottom. Combined with the
-   content-visibility:auto rule on .list-item (see CSS), the browser skips
-   layout/paint work for rows that are off-screen. */
 const LIST_PAGE_SIZE = 60;
 let listRenderState = { cat: null, items: [], rendered: 0 };
 
@@ -1748,11 +1413,6 @@ function renderListItemEl(cat, item){
     e.stopPropagation();
     toggleFavorite(cat, item.title);
   });
-  // Only images actually needs the availability check right now (that's
-  // the category with a real risk of missing files from an incomplete
-  // upload) — wiring bible/books/music thumbs the same way is easy to
-  // extend later if needed, but would just add unnecessary probe traffic
-  // today since those still use inline placeholder templates.
   if(thumbUrl){
     checkImageAvailable(thumbUrl).then(ok=>{
       const thumbEl = el.querySelector('.list-item-thumb');
@@ -1784,10 +1444,6 @@ function renderList(cat){
   const wrap = document.getElementById('listItems');
   wrap.innerHTML = '';
   if(items.length === 0){
-    // Images is the one category whose data arrives asynchronously from
-    // a manifest fetch, so an empty list here can mean three different
-    // things — show whichever message actually applies instead of a
-    // generic "No results found." in every case.
     let msg = 'No results found.';
     if(cat === 'images'){
       if(!imagesManifestLoaded) msg = 'Loading images…';
@@ -1809,8 +1465,6 @@ function renderList(cat){
   renderListPage();
 }
 
-/* Fires once the sentinel row nears the visible area — appends the next
-   page instead of re-rendering everything on every scroll pixel. */
 const listScrollObserver = new IntersectionObserver((entries)=>{
   entries.forEach(entry=>{
     if(entry.isIntersecting && listRenderState.rendered < listRenderState.items.length){
@@ -1823,14 +1477,10 @@ new MutationObserver(()=>{
   if(sentinel) listScrollObserver.observe(sentinel);
 }).observe(document.getElementById('listItems'), { childList: true });
 
-/* ===== Real PDF viewer (Bible chapters / Books) =====
-   Each entry (bible chapter or book) can have its own uploaded PDF, kept
-   in memory for this session (pdfDocsByKey: key -> pdfjs document object).
-   Nothing is persisted to disk/storage; re-uploading is needed after reload. */
-const pdfDocsByKey = {};   // key -> pdfjs PDFDocumentProxy
-const pdfPageByKey = {};   // key -> current page number (1-based)
-let pdfViewerKey = null;   // key of the entry currently shown in the display
-let pdfRenderToken = 0;    // guards against out-of-order renders when paging fast
+const pdfDocsByKey = {};
+const pdfPageByKey = {};
+let pdfViewerKey = null;
+let pdfRenderToken = 0;
 
 if(window['pdfjsLib']){
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
@@ -1868,7 +1518,7 @@ async function renderPdfPage(key, pageNum){
   if(!doc) return;
   const myToken = ++pdfRenderToken;
   const page = await doc.getPage(pageNum);
-  if(myToken !== pdfRenderToken || pdfViewerKey !== key) return; // superseded by a newer request
+  if(myToken !== pdfRenderToken || pdfViewerKey !== key) return;
   const canvas = document.getElementById('pdfCanvas');
   if(!canvas) return;
   const wrap = document.getElementById('pdfCanvasWrap');
@@ -1899,7 +1549,7 @@ function refreshPdfNav(key){
   if(nextBtn) nextBtn.disabled = page >= doc.numPages;
 }
 
-const pdfAutoFetchAttempted = new Set(); // keys we've already tried to auto-load from disk, success or fail
+const pdfAutoFetchAttempted = new Set();
 
 async function loadPdfFromArrayBuffer(key, arrayBuffer){
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -1913,11 +1563,6 @@ async function loadPdfFromArrayBuffer(key, arrayBuffer){
   }
 }
 
-/* Tries to load the PDF straight from its conventional folder path
-   (content/bible/<file>.pdf or content/books/<file>.pdf) so entries work
-   the moment a matching file is dropped in — no manual upload needed.
-   Falls back silently to the upload UI already in the markup if the file
-   isn't there yet (e.g. during local testing without a server). */
 async function autoFetchPdf(cat, item, key){
   if(pdfAutoFetchAttempted.has(key) || pdfDocsByKey[key]) return;
   pdfAutoFetchAttempted.add(key);
@@ -1927,7 +1572,7 @@ async function autoFetchPdf(cat, item, key){
     if(!res.ok) return;
     const buf = await res.arrayBuffer();
     await loadPdfFromArrayBuffer(key, buf);
-  } catch(err){ /* no file at that path yet — upload UI stays available */ }
+  } catch(err){ }
 }
 
 async function loadPdfForKey(key, file){
@@ -2023,12 +1668,6 @@ function mediaDisplayHTML(thumb, year, type, rawUrl){
   `;
 }
 
-/* Swapping dispBody's innerHTML abruptly (grid <-> song list <-> favorites)
-   was the source of the visible "flash": the browser paints one frame of
-   empty/half-built markup before the new content's images and layout
-   settle. Routing every swap through this helper fades the panel out,
-   swaps the markup while it's invisible, then fades it back in — so the
-   user only ever sees a soft cross-dissolve, never a bare flash. */
 function setDispBody(html, afterSwap){
   const body = document.getElementById('dispBody');
   body.style.opacity = '0';
@@ -2039,9 +1678,8 @@ function setDispBody(html, afterSwap){
   }, 160);
 }
 
-/* ===== Symphonies: artist -> albums -> songs browsing inside the left display ===== */
-let dispArtist = null;   // currently browsed artist title
-let dispAlbum = null;    // currently browsed album title (within dispArtist)
+let dispArtist = null;
+let dispAlbum = null;
 
 function albumGridHTML(artist){
   let cells = artist.albums.map(al => {
@@ -2215,21 +1853,13 @@ function selectItem(item, el){
       const mediaEl = document.getElementById('mediaImageEl');
       if(mediaEl && rawUrl){
         checkImageAvailable(rawUrl).then(ok=>{
-          // The item picked here could have changed again by the time this
-          // resolves (fast repeat clicks) — bail out if the element this
-          // check was for isn't in the document anymore rather than
-          // touching a stale/detached node.
           if(!document.body.contains(mediaEl)) return;
           mediaEl.classList.remove('thumb-loading');
           if(!ok){
             mediaEl.classList.add('thumb-broken');
-            if(btn) btn.style.display = 'none'; // nothing real to focus on
+            if(btn) btn.style.display = 'none';
             return;
           }
-          // Selecting any image in the gallery puts it straight into the
-          // background — the Focus button re-triggers the same thing on
-          // demand (e.g. after a double-tap stepped back to the plain
-          // gallery background) rather than being the only way in.
           enterImageFocusMode(rawUrl);
         });
       } else if(mediaEl){
@@ -2298,7 +1928,6 @@ function initContent(){
 }
 initContent();
 
-/* ============ FAVORITES VIEW (left panel) ============ */
 const favToggleBtn = document.getElementById('favToggleBtn');
 const mobileFavBtn = document.getElementById('mobileFavBtn');
 
@@ -2428,16 +2057,9 @@ function wireFavoritesView(){
   });
 }
 
-/* ============ AUDIO PLAYER ============
-   playbackContext describes what queue prev/next operate over:
-   - { mode:'album', artistTitle, albumTitle } -> songs of that album, no wrap at edges
-   - { mode:'favAlbum', artistTitle, albumTitle } -> same album, but only reachable
-     via a favorited album; edges still stop (no wrap)
-   - { mode:'favSongs' } -> flat list of individually-favorited songs, no wrap
-*/
 let playbackContext = { mode:'album', artistTitle: null, albumTitle: null };
 let audioIndex = 0, audioPlaying = false;
-let trackLoaded = false; // true only once a real track has been loaded into the player
+let trackLoaded = false;
 const audioEl = new Audio();
 audioEl.preload = 'metadata';
 
@@ -2448,7 +2070,6 @@ function formatTime(s){
   return `${m}:${String(sec).padStart(2,'0')}`;
 }
 
-/* Resolve the current playback queue (array of {title, duration, artistTitle, albumTitle, cover, src}) from playbackContext */
 function currentQueue(){
   if(playbackContext.mode === 'favSongs'){
     const out = [];
@@ -2467,7 +2088,6 @@ function currentQueue(){
     });
     return out;
   }
-  // album or favAlbum mode: songs of the one album
   const artist = findArtist(playbackContext.artistTitle);
   const album = findAlbum(playbackContext.artistTitle, playbackContext.albumTitle);
   if(!artist || !album) return [];
@@ -2531,9 +2151,6 @@ const audioPlayIcon = document.getElementById('audioPlayIcon');
 const PLAY_PATH = '<path d="M8 5v14l11-7z"/>';
 const PAUSE_PATH = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
 
-/* Real playback: audioEl fires these events itself, so there's no manual
-   setInterval ticking a fake clock (which used to drift from real audio
-   and kept a JS timer running even while paused/tab hidden). */
 audioEl.addEventListener('timeupdate', ()=>{
   document.getElementById('audioSeek').value = audioEl.currentTime;
   document.getElementById('audioCurTime').textContent = formatTime(audioEl.currentTime);
@@ -2579,7 +2196,7 @@ function changeTrack(delta){
   if(!trackLoaded) return;
   const queue = currentQueue();
   const next = audioIndex + delta;
-  if(next < 0 || next > queue.length - 1) return; // no wrap: stop at edges
+  if(next < 0 || next > queue.length - 1) return;
   loadIndexPreservingState(next, audioPlaying);
 }
 
@@ -2595,7 +2212,6 @@ document.getElementById('audioSeek').addEventListener('input', (e)=>{
 document.getElementById('audioPrev').disabled = true;
 document.getElementById('audioNext').disabled = true;
 
-/* clocks */
 function tick(){
   const d = new Date();
   const p = n => String(n).padStart(2,'0');
@@ -2606,14 +2222,6 @@ function tick(){
 tick();
 setInterval(tick, 1000);
 
-/* ============ MOBILE STEP FLOW ============
-   Step 1: Content grid only (choose a section)
-   Step 2: Content list for the chosen section
-   Step 3: The big display (left-col) showing the chosen item
-   Uses a media query match to decide when "mobile mode" is active;
-   in mobile mode we toggle a body class and show/hide the three blocks
-   instead of relying on the desktop side-by-side layout.
-*/
 const MOBILE_BREAKPOINT = 760;
 let mobileStep = 1;
 const mq = window.matchMedia(`(max-width:${MOBILE_BREAKPOINT}px)`);
@@ -2631,10 +2239,6 @@ function applyMobileState(){
 function goToStep(step){
   mobileStep = step;
   document.body.setAttribute('data-mobile-step', String(step));
-  // Two dot-rows exist in the DOM: the real one inside .right-col (used on
-  // steps 1-2) and the duplicate inside .mobile-step3-title (used on step
-  // 3, see the CSS/markup notes above). Both need to stay in sync, so
-  // update every ".mobile-step-dots" instance rather than a single #id.
   document.querySelectorAll('.mobile-step-dots span').forEach(dot=>{
     dot.classList.toggle('on', Number(dot.dataset.step) === step);
   });
