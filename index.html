@@ -231,8 +231,21 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .wave-canvas-layer.pannable{
   background-size:145% !important;
   cursor:grab;
+  transition:background-position .05s linear;
+  touch-action:none;
 }
-.wave-canvas-layer.pannable.panning{ cursor:grabbing; }
+.wave-canvas-layer.pannable.panning{ cursor:grabbing; transition:none; }
+
+/* While a background pan-drag is active, nothing on the page should
+   highlight/select as text, and every element shows the grabbing
+   cursor — otherwise dragging across list rows or section cells
+   selects their text instead of just panning the photo underneath. */
+body.is-panning-drag,
+body.is-panning-drag *{
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  cursor:grabbing !important;
+}
 
 .focus-hint{
   position:fixed;left:50%;top:22px;transform:translate(-50%,-10px);
@@ -1041,35 +1054,69 @@ function disablePanning(){
   });
 }
 
+// Only real, sustained mouse/touch/pen movement counts as a pan drag —
+// this stays false until the pointer has moved past a small threshold,
+// so a plain click/tap on a list item, star, or button still behaves
+// normally instead of being swallowed by drag setup.
+const PAN_DRAG_THRESHOLD = 6; // px
+let panArmed = false;   // pointer is down, might turn into a drag
+let panMoved = false;   // pointer has moved past the threshold — it's a real drag now
+
+function suppressNextClickOnce(){
+  const killClick = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); };
+  document.addEventListener('click', killClick, { capture:true, once:true });
+  // Safety net: if no click follows within a beat (e.g. touch without a
+  // synthesized click), don't leave a stray listener hanging forever.
+  setTimeout(()=> document.removeEventListener('click', killClick, { capture:true }), 500);
+}
+
 function onPanPointerDown(e){
   if(!focusModeActive) return;
   const el = currentBgLayerEl();
   if(!el.classList.contains('pannable')) return;
-  if(e.target.closest('button, input, a, .list-item, .content-cell, .album-cell, .song-row, .title-row')) return;
-  panDragging = true;
-  el.classList.add('panning');
+  if(e.button !== undefined && e.button !== 0) return; // left-click / primary touch only
+  panArmed = true;
+  panMoved = false;
   panStartX = e.clientX; panStartY = e.clientY;
   panStartPosX = panPosX; panStartPosY = panPosY;
 }
 function onPanPointerMove(e){
-  if(!panDragging) return;
+  if(!panArmed) return;
+  const dxRaw = e.clientX - panStartX;
+  const dyRaw = e.clientY - panStartY;
+  if(!panMoved){
+    if(Math.hypot(dxRaw, dyRaw) < PAN_DRAG_THRESHOLD) return;
+    // Crossed the threshold — this is now a genuine drag: start visuals,
+    // block text selection for its duration, and prevent the click that
+    // would otherwise fire on whatever the pointer lands on afterwards
+    // (a list item, a section cell, etc.) from being treated as a tap.
+    panMoved = true;
+    panDragging = true;
+    document.body.classList.add('is-panning-drag');
+    currentBgLayerEl().classList.add('panning');
+  }
   const el = currentBgLayerEl();
   const rect = el.getBoundingClientRect();
   // The zoomed layer has roughly 45% extra width/height to roam across;
-  // scale drag distance against that overflow so a full-width drag
-  // travels close to the available pan range, not a tiny nudge.
+  // scale drag distance against that overflow so a full-drag travels
+  // close to the available pan range, not a tiny nudge.
   const rangeX = rect.width * 0.45 || 1;
   const rangeY = rect.height * 0.45 || 1;
-  const dx = (e.clientX - panStartX) / rangeX * 100;
-  const dy = (e.clientY - panStartY) / rangeY * 100;
+  const dx = dxRaw / rangeX * 100;
+  const dy = dyRaw / rangeY * 100;
   panPosX = Math.max(0, Math.min(100, panStartPosX - dx));
   panPosY = Math.max(0, Math.min(100, panStartPosY - dy));
   el.style.backgroundPosition = `${panPosX}% ${panPosY}%`;
 }
 function onPanPointerUp(){
-  if(!panDragging) return;
-  panDragging = false;
-  document.querySelectorAll('.wave-canvas-layer').forEach(el=>el.classList.remove('panning'));
+  panArmed = false;
+  if(panDragging){
+    panDragging = false;
+    document.body.classList.remove('is-panning-drag');
+    document.querySelectorAll('.wave-canvas-layer').forEach(el=>el.classList.remove('panning'));
+    suppressNextClickOnce();
+  }
+  panMoved = false;
 }
 document.addEventListener('pointerdown', onPanPointerDown);
 document.addEventListener('pointermove', onPanPointerMove);
@@ -1688,7 +1735,7 @@ function renderListItemEl(cat, item){
   el.className = 'list-item';
   const thumbUrl = cat === 'images' ? rawImageUrlFor(cat, item) : null;
   el.innerHTML = `
-    <div class="list-item-thumb thumb-loading" style="background:${thumbFor(cat,item)}"></div>
+    <div class="list-item-thumb thumb-loading" style="background-image:${thumbFor(cat,item)}"></div>
     <div class="list-item-text">
       <h4>${item.title}</h4>
       <p>${item.short||''}</p>
@@ -1966,7 +2013,7 @@ function mediaDisplayHTML(thumb, year, type, rawUrl){
     </button>` : '';
   return `
     <div class="media-image-wrap">
-      <div class="media-image thumb-loading" id="mediaImageEl" style="background:${thumb}"></div>
+      <div class="media-image thumb-loading" id="mediaImageEl" style="background-image:${thumb}"></div>
       ${focusBtn}
     </div>
     <div class="display-meta">
@@ -2302,7 +2349,7 @@ function renderFavoritesView(){
       if(!artist || !album || !song) return;
       html += `
         <div class="list-item fav-view-item" data-kind="song" data-artist="${artistTitle.replace(/"/g,'&quot;')}" data-album="${albumTitle.replace(/"/g,'&quot;')}" data-song="${songTitle.replace(/"/g,'&quot;')}">
-          <div class="list-item-thumb" style="background:${albumCoverFor(artist, album)}"></div>
+          <div class="list-item-thumb" style="background-image:${albumCoverFor(artist, album)}"></div>
           <div class="list-item-text">
             <h4>${song.title}</h4>
             <p>${artistTitle} · ${albumTitle}</p>
@@ -2316,7 +2363,7 @@ function renderFavoritesView(){
       if(!artist || !album) return;
       html += `
         <div class="list-item fav-view-item" data-kind="album" data-artist="${artistTitle.replace(/"/g,'&quot;')}" data-album="${albumTitle.replace(/"/g,'&quot;')}">
-          <div class="list-item-thumb" style="background:${albumCoverFor(artist, album)}"></div>
+          <div class="list-item-thumb" style="background-image:${albumCoverFor(artist, album)}"></div>
           <div class="list-item-text">
             <h4>${album.title}</h4>
             <p>${artistTitle} · ${album.year}</p>
@@ -2328,7 +2375,7 @@ function renderFavoritesView(){
       if(!item) return;
       html += `
         <div class="list-item fav-view-item" data-kind="content" data-cat="${cat}" data-title="${rest.replace(/"/g,'&quot;')}">
-          <div class="list-item-thumb" style="background:${thumbFor(cat,item)}"></div>
+          <div class="list-item-thumb" style="background-image:${thumbFor(cat,item)}"></div>
           <div class="list-item-text">
             <h4>${item.title}</h4>
             <p>${item.short||''}</p>
