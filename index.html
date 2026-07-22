@@ -597,6 +597,15 @@ body.is-panning-drag *{
   body.is-mobile[data-mobile-step="3"] .mobile-fav-btn{ display:none; }
 
   body.is-mobile .bg-wrap{ padding-top:18px; padding-bottom:18px; }
+
+  /* Background pan/zoom is desktop-only — on mobile the section/focus
+     background always sits as a plain cover-fit image, never the 145%
+     zoomed, draggable version. */
+  body.is-mobile .wave-canvas-layer.pannable{
+    background-size:cover !important;
+    cursor:default;
+    touch-action:auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -843,7 +852,14 @@ function resetPanPosition(el){
   if(el) el.style.backgroundPosition = '50% 50%';
 }
 
+function isMobileViewport(){
+  return document.body.classList.contains('is-mobile');
+}
+
 function enablePanning(){
+  // On mobile the pan/zoom gesture isn't available — the background just
+  // sits as a normal cover-fit image, same as any other section background.
+  if(isMobileViewport()) return;
   const el = currentBgLayerEl();
   el.classList.add('pannable');
   resetPanPosition(el);
@@ -881,9 +897,14 @@ function blurStrayInputFocus(){
 
 function onPanPointerDown(e){
   if(!focusModeActive) return;
+  if(isMobileViewport()) return;
   const el = currentBgLayerEl();
   if(!el.classList.contains('pannable')) return;
   if(e.button !== undefined && e.button !== 0) return;
+  // Scrolling the list or dragging the audio seek bar/player shouldn't
+  // also drag the fullscreen background behind it — those are their own
+  // scrollable/draggable controls, not empty background space.
+  if(e.target.closest('.list-items, .list-scroll-wrap, .audio-player, input[type="range"]')) return;
   panArmed = true;
   panMoved = false;
   panStartX = e.clientX; panStartY = e.clientY;
