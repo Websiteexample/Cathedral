@@ -196,12 +196,13 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
 .media-image-wrap .media-image{margin:4px auto 14px auto;}
 .img-focus-btn{
   position:absolute;bottom:24px;right:10px;z-index:6;
-  width:auto;height:auto;padding:7px 14px 7px 11px;border-radius:20px;
+  max-width:calc(100% - 20px);
+  padding:7px 14px 7px 11px;border-radius:20px;
   display:flex;align-items:center;gap:6px;
   background:rgba(17,17,20,0.55);backdrop-filter:blur(6px);
   box-shadow:0 6px 16px var(--shadow-2), inset 0 0 0 1px var(--glass-highlight);
   color:var(--hilite-text);font-family:"Trebuchet MS",sans-serif;
-  font-size:11px;letter-spacing:0.4px;
+  font-size:11px;letter-spacing:0.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .img-focus-btn:hover{opacity:0.85;}
 .img-focus-btn svg{flex-shrink:0;}
@@ -214,19 +215,26 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg-page);fo
    keeps every existing control (audio player, nav) reachable rather than
    demanding a separate teardown/restore path for a true fullscreen
    takeover. */
-body.img-focus-mode .stage{ opacity:0.16; transition:opacity .4s ease; pointer-events:none; }
+/* Focus mode no longer dims or disables the stage — the whole point is
+   that browsing (left display, right column, audio player) stays fully
+   usable while a gallery image sits behind everything as the page
+   background, exactly like a category background does. So there is no
+   stage-level CSS override here anymore; see the IMAGE FOCUS MODE
+   script block for the actual behavior. */
 #waveStage{ transition:filter .4s ease; }
 
 .focus-hint{
-  position:fixed;left:50%;bottom:36px;transform:translate(-50%,10px);
-  z-index:50;padding:10px 18px;border-radius:20px;
-  background:rgba(17,17,20,0.6);backdrop-filter:blur(8px);
+  position:fixed;left:50%;top:22px;transform:translate(-50%,-10px);
+  z-index:50;padding:9px 18px;border-radius:20px;
+  background:rgba(17,17,20,0.62);backdrop-filter:blur(8px);
   color:var(--hilite-text);font-family:"Trebuchet MS",sans-serif;
   font-size:12px;letter-spacing:0.3px;text-align:center;
+  display:flex;align-items:center;gap:7px;
   box-shadow:0 8px 22px var(--shadow-1), inset 0 0 0 1px var(--glass-highlight);
   opacity:0;pointer-events:none;
   transition:opacity .35s ease, transform .35s ease;
 }
+.focus-hint svg{flex-shrink:0;opacity:0.85;}
 .focus-hint.show{ opacity:1; transform:translate(-50%,0); }
 
 
@@ -420,7 +428,46 @@ body.img-focus-mode .stage{ opacity:0.16; transition:opacity .4s ease; pointer-e
   contain-intrinsic-size:60px;
 }
 .list-item:hover{box-shadow:inset 0 0 0 1px var(--glass-highlight-2);}
-.list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:cover;background-position:center;border-radius:4px;}
+.list-item-thumb{width:44px;height:44px;flex-shrink:0;background-size:cover;background-position:center;border-radius:4px;position:relative;overflow:hidden;}
+
+/* Shown while an image thumb's availability is still being probed —
+   without this, a missing/slow image is just a static blank square with
+   no feedback that anything is happening at all. */
+@keyframes thumbShimmer{ 0%{ background-position:-120% 0; } 100%{ background-position:220% 0; } }
+.thumb-loading::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%);
+  background-size:200% 100%;
+  animation:thumbShimmer 1.3s ease-in-out infinite;
+}
+/* Shown once a thumb's image URL has been probed and 404'd — makes a
+   missing file visibly obvious (a small broken-image glyph) instead of
+   silently rendering as a plain dark/blank box that looks like a bug
+   in the site rather than a missing asset. */
+.thumb-broken{ background:linear-gradient(135deg,#2a2a2e,#1c1c1f) !important; }
+.thumb-broken::before{
+  content:"";position:absolute;inset:0;margin:auto;width:16px;height:16px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23716f68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpath d='M21 15l-5-5L5 21'/%3E%3C/svg%3E");
+  background-size:contain;background-repeat:no-repeat;opacity:0.7;
+}
+.media-image.thumb-broken::before{ width:34px; height:34px; }
+.media-image.thumb-broken::after{
+  content:"Image not found";position:absolute;left:0;right:0;bottom:14px;text-align:center;
+  font-family:"Courier New",monospace;font-size:10px;letter-spacing:1px;color:var(--dim-text-2);
+  text-transform:uppercase;
+}
+
+/* Large detail-view image gets a softer "breathing blur" pulse instead of
+   the shimmer sweep used on small thumbs — reads better at that size and
+   matches the site's existing blur-pulse background transition language,
+   so the loading state feels like part of the same visual system rather
+   than a bolted-on spinner. */
+@keyframes mediaBlurPulse{
+  0%,100%{ filter:blur(6px) brightness(0.85); }
+  50%{ filter:blur(10px) brightness(0.95); }
+}
+.media-image.thumb-loading{ animation:mediaBlurPulse 1.6s ease-in-out infinite; }
+.media-image.thumb-loading::after{ display:none; } /* skip the shimmer sweep on the big image, blur pulse is enough */
 .list-item-text{padding-right:20px;}
 .list-item-text h4{margin:0 0 3px 0;font-size:11px;color:var(--hilite-text);letter-spacing:0.3px;}
 .list-item-text p{margin:0;font-size:9.5px;line-height:1.4;color:var(--dim-text);font-family:"Courier New",monospace;}
@@ -696,7 +743,10 @@ input:focus-visible{
   <div id="waveLayerB" class="wave-canvas-layer"></div>
 </div>
 
-<div class="focus-hint" id="focusHint" aria-hidden="true">Double-tap to exit</div>
+<div class="focus-hint" id="focusHint" aria-hidden="true">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9V4.5M9 9H4.5M9 9L3 3M15 9V4.5M15 9h4.5M15 9l6-6M9 15v4.5M9 15H4.5M9 15l-6 6M15 15v4.5M15 15h4.5M15 15l6 6"/></svg>
+  <span>Double-tap anywhere to exit</span>
+</div>
 
 <div class="bg-wrap">
 <div class="stage">
@@ -926,31 +976,43 @@ function switchBackground(cat){
 }
 
 /* ============ IMAGE FOCUS MODE ============
-   Lets a gallery image take over the fullscreen background layer (the
-   same dual-layer crossfade everything else uses), with a small hint
-   telling the person how to get back out. Nothing about the crossfade
-   itself changes — this just points it at a one-off image URL instead
-   of a category key, and remembers what to restore on exit. */
+   The currently-open gallery image is shown as the page background (the
+   same dual-layer crossfade every category background already uses),
+   sitting behind the stage — it never covers or dims the left/right
+   panels, so browsing stays fully usable while it's active.
+
+   Lifecycle:
+   - Opening an image in the Images category puts it in the background
+     automatically (via selectItem -> enterImageFocusMode).
+   - Opening a different image swaps the background to that image, using
+     the normal blur crossfade — no manual re-trigger needed.
+   - Leaving the Images section (switching category, going home) clears
+     focus mode and the background reverts to that section's normal
+     default image, same crossfade.
+   - Double-tapping/double-clicking anywhere reverts to the Images
+     section's own default background (background-4.jpg) without leaving
+     the section — a quick "step back to the gallery's plain background"
+     without closing the item itself.
+*/
 let focusModeActive = false;
-let focusModeReturnCat = null; // category background to restore on exit
 let focusModeHintTimer = null;
 
 function enterImageFocusMode(url){
-  if(!url || focusModeActive) return;
+  if(!url) return;
   focusModeActive = true;
-  focusModeReturnCat = activeCat || 'default';
   switchBackgroundToUrl(url, '__focus__:' + url);
-  document.body.classList.add('img-focus-mode');
   showFocusHint();
+  const btn = document.getElementById('imgFocusBtn');
+  if(btn) btn.style.display = 'none';
 }
 
+/* Called whenever focus mode should end and the ordinary section
+   background should take over again — leaving the Images category
+   entirely (not just double-tapping back to its default background). */
 function exitImageFocusMode(){
   if(!focusModeActive) return;
   focusModeActive = false;
-  document.body.classList.remove('img-focus-mode');
   hideFocusHint();
-  switchBackground(focusModeReturnCat);
-  focusModeReturnCat = null;
 }
 
 function showFocusHint(){
@@ -959,8 +1021,8 @@ function showFocusHint(){
   hint.classList.add('show');
   clearTimeout(focusModeHintTimer);
   // Hint fades on its own after a few seconds so it doesn't linger and
-  // block the view, but reappears any time the person taps once (see the
-  // tap handler below) in case they forgot how to get back out.
+  // block the view, but reappears on a single tap (see the tap handler
+  // below) in case the person forgot how to step back out.
   focusModeHintTimer = setTimeout(()=> hint.classList.remove('show'), 3200);
 }
 function hideFocusHint(){
@@ -969,29 +1031,46 @@ function hideFocusHint(){
   clearTimeout(focusModeHintTimer);
 }
 
-/* Double-tap/double-click detection on the background layers themselves.
-   Using two consecutive pointerdown events within a short window rather
-   than the browser's native "dblclick" because dblclick doesn't fire
-   reliably for touch on all mobile browsers — pointerdown does. */
+/* Double-tap/double-click anywhere reverts the background to the Images
+   section's own default photo (not out of the section — just back to
+   its plain background), using the same crossfade. A single tap just
+   re-shows the hint in case it already faded, exactly like before.
+   Listens on `document` (not `#waveStage`) since the stage sits on top
+   of the background at full opacity/pointer-events now — the hint and
+   exit gesture need to work no matter where on the page the tap lands,
+   as long as it's not on a real interactive control (buttons, inputs,
+   list items, etc.), which are left alone so normal clicks still work. */
 let lastFocusTapTime = 0;
-function handleFocusModePointerDown(){
+/* Steps the background back to the Images section's own plain default
+   photo, without leaving the section — used by both the double-tap
+   gesture and Escape. Reveals the "Show as background" button again
+   since its image is no longer what's showing. */
+function stepBackToPlainGalleryBackground(){
+  focusModeActive = false;
+  switchBackground('images');
+  hideFocusHint();
+  const btn = document.getElementById('imgFocusBtn');
+  if(btn) btn.style.display = 'flex';
+}
+
+function handleFocusModePointerDown(e){
   if(!focusModeActive) return;
+  // Don't hijack taps on actual controls — only bare background/empty
+  // areas should trigger the double-tap gesture.
+  if(e.target.closest('button, input, a, .list-item, .content-cell, .album-cell, .song-row, .title-row')) return;
   const now = Date.now();
   if(now - lastFocusTapTime < 350){
     lastFocusTapTime = 0;
-    exitImageFocusMode();
+    stepBackToPlainGalleryBackground();
   } else {
     lastFocusTapTime = now;
-    showFocusHint(); // single tap re-shows the reminder, doesn't exit
+    showFocusHint();
   }
 }
-document.getElementById('waveStage').addEventListener('pointerdown', handleFocusModePointerDown);
+document.addEventListener('pointerdown', handleFocusModePointerDown);
 
-// Backing out of focus mode any other way the person might reasonably
-// expect to work: Escape key, or navigating away from the image entirely
-// (opening a different item, switching sections, going home).
 document.addEventListener('keydown', (e)=>{
-  if(e.key === 'Escape' && focusModeActive) exitImageFocusMode();
+  if(e.key === 'Escape' && focusModeActive) stepBackToPlainGalleryBackground();
 });
 
 /* Tapping/clicking the "OnlineCathedral" title acts as a home button:
@@ -999,7 +1078,7 @@ document.addEventListener('keydown', (e)=>{
    empty state, and eases the background back to the default image
    using the same blur-pulse crossfade as switching sections. */
 function goHome(){
-  if(focusModeActive){ focusModeActive = false; document.body.classList.remove('img-focus-mode'); hideFocusHint(); }
+  if(focusModeActive) exitImageFocusMode();
   switchBackground('default');
   document.querySelectorAll('.content-cell').forEach(c=>c.classList.remove('active'));
   activeCat = null;
@@ -1324,6 +1403,29 @@ function rawImageUrlFor(cat, item){
   if(item.file || item.title) return `${PATHS[cat]}${item.file || (slugify(item.title)+'.jpg')}`;
   return null;
 }
+
+/* ===== Image availability check =====
+   background-image can't tell the difference between "still loading" and
+   "404, will never load" — a broken background stays silently blank
+   forever with no visible signal, which is exactly what showed up as
+   solid black/dark boxes in the gallery. This probes each URL with a
+   real Image() (which does fire load/error) and caches the verdict so
+   repeat renders (scrolling, re-opening the same item) don't re-fetch.
+   Returns a promise resolving to true/false. */
+const imageAvailabilityCache = new Map(); // url -> Promise<boolean>
+function checkImageAvailable(url){
+  if(!url) return Promise.resolve(false);
+  if(imageAvailabilityCache.has(url)) return imageAvailabilityCache.get(url);
+  const p = new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=> resolve(true);
+    img.onerror = ()=> resolve(false);
+    img.src = url;
+  });
+  imageAvailabilityCache.set(url, p);
+  return p;
+}
+
 function albumCoverFor(artist, album){
   const file = album.cover || 'cover.jpg';
   return `url('${PATHS.music}${slugify(artist.title)}/${slugify(album.title)}/${file}')`;
@@ -1369,14 +1471,14 @@ async function loadImagesManifest(){
   if(imagesManifestLoading) return imagesManifestLoading;
   imagesManifestLoading = (async () => {
     let raw = null;
-    let lastErr = null;
+    const attempts = []; // { url, message } for every candidate tried
     for(const name of IMAGES_MANIFEST_CANDIDATES){
+      const url = PATHS.images + name;
       try{
-        raw = await tryFetchManifest(PATHS.images + name);
-        lastErr = null;
+        raw = await tryFetchManifest(url);
         break;
       } catch(err){
-        lastErr = err;
+        attempts.push({ url, message: err.message });
       }
     }
     if(raw && Array.isArray(raw)){
@@ -1393,9 +1495,14 @@ async function loadImagesManifest(){
       // No manifest found under any candidate name, or it wasn't a JSON
       // array. Leave DATA.images empty; the list view shows a clear
       // message (instead of a silent blank list) so this is easy to
-      // diagnose from the page itself, not just the console.
-      console.warn('Could not load images manifest:', lastErr);
-      imagesManifestError = lastErr ? lastErr.message : 'Manifest was not a JSON array';
+      // diagnose from the page itself, not just the console. Log every
+      // attempted URL, not just the last one, so a 404-on-all-four is
+      // immediately readable as "the whole folder is missing" rather
+      // than looking like a single wrong filename guess.
+      console.warn('Could not load images manifest. Tried:', attempts);
+      imagesManifestError = attempts.length
+        ? `Tried ${attempts.length} filenames in ${PATHS.images} — all failed (e.g. ${attempts[attempts.length-1].message})`
+        : 'Manifest was not a JSON array';
       DATA.images = [];
     }
     imagesManifestLoaded = true;
@@ -1494,8 +1601,9 @@ let listRenderState = { cat: null, items: [], rendered: 0 };
 function renderListItemEl(cat, item){
   const el = document.createElement('div');
   el.className = 'list-item';
+  const thumbUrl = cat === 'images' ? rawImageUrlFor(cat, item) : null;
   el.innerHTML = `
-    <div class="list-item-thumb" style="background:${thumbFor(cat,item)}"></div>
+    <div class="list-item-thumb thumb-loading" style="background:${thumbFor(cat,item)}"></div>
     <div class="list-item-text">
       <h4>${item.title}</h4>
       <p>${item.short||''}</p>
@@ -1508,6 +1616,21 @@ function renderListItemEl(cat, item){
     e.stopPropagation();
     toggleFavorite(cat, item.title);
   });
+  // Only images actually needs the availability check right now (that's
+  // the category with a real risk of missing files from an incomplete
+  // upload) — wiring bible/books/music thumbs the same way is easy to
+  // extend later if needed, but would just add unnecessary probe traffic
+  // today since those still use inline placeholder templates.
+  if(thumbUrl){
+    checkImageAvailable(thumbUrl).then(ok=>{
+      const thumbEl = el.querySelector('.list-item-thumb');
+      if(!thumbEl) return;
+      thumbEl.classList.remove('thumb-loading');
+      if(!ok) thumbEl.classList.add('thumb-broken');
+    });
+  } else {
+    el.querySelector('.list-item-thumb').classList.remove('thumb-loading');
+  }
   return el;
 }
 
@@ -1752,13 +1875,13 @@ function initPdfViewer(key, cat, item){
 
 function mediaDisplayHTML(thumb, year, type, rawUrl){
   const focusBtn = rawUrl ? `
-    <button class="img-focus-btn icon-btn" id="imgFocusBtn" aria-label="View as background">
+    <button class="img-focus-btn icon-btn" id="imgFocusBtn" aria-label="Show as background" style="display:none;">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 0-2 2h-3"/></svg>
-      <span>Focus</span>
+      <span>Show as background</span>
     </button>` : '';
   return `
     <div class="media-image-wrap">
-      <div class="media-image" style="background:${thumb}"></div>
+      <div class="media-image thumb-loading" id="mediaImageEl" style="background:${thumb}"></div>
       ${focusBtn}
     </div>
     <div class="display-meta">
@@ -1928,7 +2051,6 @@ document.getElementById('dispBackArrow').addEventListener('click', ()=>{
 });
 
 function selectItem(item, el){
-  if(focusModeActive) exitImageFocusMode();
   document.querySelectorAll('.list-item').forEach(e=>e.classList.remove('active'));
   if(el) el.classList.add('active');
 
@@ -1937,12 +2059,14 @@ function selectItem(item, el){
   document.getElementById('dispBackArrow').style.display = 'none';
 
   if(currentCat === 'bible'){
+    if(focusModeActive) exitImageFocusMode();
     dispTitle.textContent = item.book;
     dispSub.textContent = item.chapterLabel;
     dispSub.style.display = 'block';
     const key = pdfKeyFor('bible', item.title, item.file);
     setDispBody(pdfViewerHTML(key, false), ()=>initPdfViewer(key, 'bible', item));
   } else if(currentCat === 'books'){
+    if(focusModeActive) exitImageFocusMode();
     dispTitle.textContent = item.title;
     dispSub.textContent = item.author;
     dispSub.style.display = 'block';
@@ -1956,8 +2080,32 @@ function selectItem(item, el){
     setDispBody(mediaDisplayHTML(thumbFor('images', item), item.year, item.tech, rawUrl), ()=>{
       const btn = document.getElementById('imgFocusBtn');
       if(btn) btn.addEventListener('click', ()=> enterImageFocusMode(rawUrl));
+      const mediaEl = document.getElementById('mediaImageEl');
+      if(mediaEl && rawUrl){
+        checkImageAvailable(rawUrl).then(ok=>{
+          // The item picked here could have changed again by the time this
+          // resolves (fast repeat clicks) — bail out if the element this
+          // check was for isn't in the document anymore rather than
+          // touching a stale/detached node.
+          if(!document.body.contains(mediaEl)) return;
+          mediaEl.classList.remove('thumb-loading');
+          if(!ok){
+            mediaEl.classList.add('thumb-broken');
+            if(btn) btn.style.display = 'none'; // nothing real to focus on
+            return;
+          }
+          // Selecting any image in the gallery puts it straight into the
+          // background — the Focus button re-triggers the same thing on
+          // demand (e.g. after a double-tap stepped back to the plain
+          // gallery background) rather than being the only way in.
+          enterImageFocusMode(rawUrl);
+        });
+      } else if(mediaEl){
+        mediaEl.classList.remove('thumb-loading');
+      }
     });
   } else if(currentCat === 'symphonies'){
+    if(focusModeActive) exitImageFocusMode();
     document.getElementById('favToggleBtn').classList.remove('active');
     document.getElementById('mobileFavBtn').classList.remove('active');
     showingFavorites = false;
@@ -1968,7 +2116,7 @@ function selectItem(item, el){
 }
 
 function selectCategory(cat){
-  if(focusModeActive){ focusModeActive = false; document.body.classList.remove('img-focus-mode'); hideFocusHint(); }
+  if(focusModeActive) exitImageFocusMode();
   currentCat = cat;
   activeCat = cat;
   searchTerm = "";
